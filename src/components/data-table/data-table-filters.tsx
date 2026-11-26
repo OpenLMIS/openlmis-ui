@@ -9,6 +9,7 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxStatus,
+  ComboboxVirtualList,
 } from '@/components/ui/combobox';
 import {
   Select,
@@ -107,6 +108,7 @@ type DataTableComboboxFilterProps = {
   onValueChange: (value: string) => void;
   options: DataTableComboboxFilterOption[];
   limit?: number;
+  virtualized?: boolean;
   filter?: (option: DataTableComboboxFilterOption, query: string) => boolean;
   /** Searches the server with what the user types; the options are then listed as given. */
   onSearch?: (text: string) => void;
@@ -123,6 +125,7 @@ export function DataTableComboboxFilter({
   onValueChange,
   options,
   limit = 50,
+  virtualized = false,
   filter,
   onSearch,
   emptyMessage,
@@ -131,6 +134,7 @@ export function DataTableComboboxFilter({
 }: DataTableComboboxFilterProps) {
   const labels = useDataTableLabels();
   const selected = options.find((option) => option.value === value) ?? null;
+  const virtual = virtualized && options.length > 50;
 
   return (
     <Combobox
@@ -138,7 +142,8 @@ export function DataTableComboboxFilter({
       isItemEqualToValue={(item, picked) => item.value === picked.value}
       itemToStringLabel={(item) => item.label}
       items={options}
-      limit={limit}
+      limit={virtualized ? -1 : limit}
+      virtualized={virtual}
       onInputValueChange={
         onSearch && ((text, details) => onSearch(details.reason === 'input-change' ? text : ''))
       }
@@ -159,23 +164,39 @@ export function DataTableComboboxFilter({
         width="full"
       />
       <ComboboxContent>
-        {status && <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>}
+        {(onSearch || virtualized || status) && (
+          <ComboboxStatus>{options.length > 0 && status}</ComboboxStatus>
+        )}
         <ComboboxEmpty>{emptyMessage ?? labels.noMatches}</ComboboxEmpty>
-        <ComboboxList>
-          {(option: DataTableComboboxFilterOption) => (
-            <ComboboxItem key={option.value} value={option}>
-              <span className="min-w-0 truncate" dir="auto">
-                {option.label}
-              </span>
-              {option.description && (
-                <span className="ms-auto shrink-0 text-muted-foreground text-xs" dir="auto">
-                  {option.description}
-                </span>
-              )}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
+        {virtual ? (
+          <ComboboxVirtualList<DataTableComboboxFilterOption> itemKey={(option) => option.value}>
+            {(option) => <ComboboxFilterOptionText option={option} />}
+          </ComboboxVirtualList>
+        ) : (
+          <ComboboxList>
+            {(option: DataTableComboboxFilterOption) => (
+              <ComboboxItem key={option.value} value={option}>
+                <ComboboxFilterOptionText option={option} />
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        )}
       </ComboboxContent>
     </Combobox>
+  );
+}
+
+function ComboboxFilterOptionText({ option }: { option: DataTableComboboxFilterOption }) {
+  return (
+    <>
+      <span className="min-w-0 truncate" dir="auto">
+        {option.label}
+      </span>
+      {option.description && (
+        <span className="ms-auto shrink-0 text-muted-foreground text-xs" dir="auto">
+          {option.description}
+        </span>
+      )}
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { z } from 'zod';
-import { parseEditableDate } from '@/components/form/date-value';
+import { isEditableDateValue } from '@/components/form/date-value';
 import type {
   NotificationPayload,
   NotificationUpdate,
@@ -86,11 +86,21 @@ function boundInstant(
   return fromZonedParts(date, time, zone, { endOfMinute: bound === 'expiry' });
 }
 
+function subMilliseconds(instant: string) {
+  const fraction = /\.\d{3}(\d+)(?:Z|[+-])/i.exec(instant)?.[1] ?? '';
+  return fraction.padEnd(6, '0');
+}
+
+function expiresBeforeStart(expiry: string, start: string) {
+  const difference = Date.parse(expiry) - Date.parse(start);
+  return difference === 0 ? subMilliseconds(expiry) < subMilliseconds(start) : difference < 0;
+}
+
 export function notificationFormSchema(zone: string, saved?: SavedNotification) {
   return formFields.superRefine((values, context) => {
     const validate = (bound: Bound) => {
       const date = values[`${bound}Date`];
-      if (!date || !parseEditableDate(date)) return null;
+      if (!date || !isEditableDateValue(date)) return null;
       const timeField = `${bound}Time` as const;
       if (!TIME.test(values[timeField])) {
         context.addIssue({
@@ -112,7 +122,7 @@ export function notificationFormSchema(zone: string, saved?: SavedNotification) 
     };
     const start = validate('start');
     const expiry = validate('expiry');
-    if (start && expiry && Date.parse(expiry) < Date.parse(start)) {
+    if (start && expiry && expiresBeforeStart(expiry, start)) {
       context.addIssue({
         code: 'custom',
         path: ['expiryDate'],

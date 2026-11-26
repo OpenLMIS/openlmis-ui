@@ -60,20 +60,20 @@ function createColumns(
 
   return columnHelper.columns([
     columnHelper.accessor('title', {
-      ...labeled(t('system-notifications.admin.title'), 'w-1/5'),
+      ...labeled(t('system-notifications.admin.title'), 'w-36'),
       cell: ({ row }) => <NotificationTitle notice={row.original} />,
     }),
     columnHelper.accessor((notice) => (notice.author ? fullName(notice.author) : ''), {
-      ...labeled(t('system-notifications.admin.author'), 'w-1/6'),
+      ...labeled(t('system-notifications.admin.author'), 'w-28'),
       id: 'author',
       cell: ({ getValue }) => (getValue() ? <CellText>{getValue()}</CellText> : null),
     }),
     columnHelper.accessor('createdDate', {
-      ...labeled(t('system-notifications.admin.created-date'), 'w-28 @4xl/main:w-36'),
+      ...labeled(t('system-notifications.admin.created-date'), 'w-32'),
       cell: ({ getValue }) => formatTimestamp(getValue(), language, { timeZone }),
     }),
     columnHelper.accessor('active', {
-      ...labeled(t('system-notifications.admin.active'), 'w-24'),
+      ...labeled(t('system-notifications.admin.active'), 'w-28'),
       cell: ({ getValue }) => (
         <FlagBadge
           falseLabel={t('system-notifications.admin.inactive')}
@@ -83,7 +83,7 @@ function createColumns(
       ),
     }),
     columnHelper.display({
-      ...labeled(t('system-notifications.admin.is-displayed'), 'w-32'),
+      ...labeled(t('system-notifications.admin.is-displayed'), 'w-40'),
       id: 'displayed',
       cell: ({ row }) => (
         <FlagBadge
@@ -94,7 +94,7 @@ function createColumns(
       ),
     }),
     columnHelper.accessor('message', {
-      ...labeled(t('system-notifications.admin.message')),
+      ...labeled(t('system-notifications.admin.message'), 'w-48'),
       cell: ({ getValue }) => <CellText overflow="wrap">{getValue()}</CellText>,
     }),
     columnHelper.display({

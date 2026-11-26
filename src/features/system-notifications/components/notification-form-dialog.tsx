@@ -1,13 +1,12 @@
 import { revalidateLogic, useStore } from '@tanstack/react-form';
 import {
   type QueryClient,
-  queryOptions,
   useIsMutating,
   useQueryClient,
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -19,8 +18,8 @@ import {
   SkeletonLine,
   SwitchRowSkeleton,
 } from '@/components/display/dialog-parts';
-import { formatTimestamp, parseEditableDate } from '@/components/form/date-value';
-import { useAppForm } from '@/components/form/form';
+import { formatTimestamp, isEditableDateValue } from '@/components/form/date-value';
+import { useAppForm, withForm } from '@/components/form/form';
 import { FormErrorMessagesProvider, useFormatError } from '@/components/form/form-messages';
 import { SettingsItem } from '@/components/form/settings-list';
 import {
@@ -36,14 +35,13 @@ import {
 } from '@/components/form-dialog/form-dialog';
 import { useDialogTarget } from '@/components/form-dialog/use-dialog-target';
 import { FieldGroup } from '@/components/ui/field';
-import {
-  deploymentTimeZoneOptions,
-  userRecordOptions,
-} from '@/features/reference-data/api/queries';
+import { userRecordOptions } from '@/features/reference-data/api/queries';
 import { createNotification, updateNotification } from '@/features/system-notifications/api/api';
 import {
+  DeploymentTimeZoneUnavailable,
   notificationAuthorOptions,
   notificationDetailOptions,
+  notificationTimeZoneOptions,
 } from '@/features/system-notifications/api/queries';
 import {
   EMPTY_NOTIFICATION_FORM,
@@ -62,7 +60,6 @@ import type {
 import { useOpening } from '@/hooks/use-opening';
 import { useSessionMutation } from '@/hooks/use-session-mutation';
 import { apiErrorText, fieldErrorFor } from '@/lib/api-error';
-import { storedTimeZone } from '@/lib/deployment-time-zone';
 import { EMPTY_VALUE } from '@/lib/empty-value';
 import { isNotFound } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
@@ -72,20 +69,6 @@ import { fullName } from '@/lib/text';
 import type { Page } from '@/lib/types';
 
 const saveKey = (target: string) => [...queryKeys.systemNotifications.all, 'save', target] as const;
-
-class DeploymentTimeZoneUnavailable extends Error {}
-
-const formTimeZoneOptions = (opening: number) =>
-  queryOptions({
-    queryKey: [...queryKeys.localeSettings.detail('notification-form'), opening],
-    queryFn: async ({ client }) => {
-      const { zone, read } = await client.fetchQuery(deploymentTimeZoneOptions());
-      if (!read && !storedTimeZone()) throw new DeploymentTimeZoneUnavailable();
-      return zone;
-    },
-    retry: false,
-    staleTime: Infinity,
-  });
 
 const DATE_FIELDS = [
   {
@@ -174,7 +157,7 @@ function NewNotification({ opening, ...props }: FormLoadProps) {
   const authorId = getSessionUserId();
   if (!authorId) throw new SessionEndedError();
   const [{ data: zone }, { data: user }] = useSuspenseQueries({
-    queries: [formTimeZoneOptions(opening), userRecordOptions(authorId)],
+    queries: [notificationTimeZoneOptions(opening), userRecordOptions(authorId)],
   });
   return (
     <NotificationForm
@@ -203,9 +186,9 @@ function cachedAuthorName(queryClient: QueryClient, saved: SavedNotification) {
 function ExistingNotification({ opening, target, ...props }: FormLoadProps & { target: string }) {
   const queryClient = useQueryClient();
   const [{ data: zone }, { data: saved }] = useSuspenseQueries({
-    queries: [formTimeZoneOptions(opening), notificationDetailOptions(target, opening)],
+    queries: [notificationTimeZoneOptions(opening), notificationDetailOptions(target, opening)],
   });
-  const authorName = cachedAuthorName(queryClient, saved);
+  const [authorName] = useState(() => cachedAuthorName(queryClient, saved));
   const formProps = { ...props, authorId: saved.author.id, saved, zone };
   return authorName ? (
     <NotificationForm {...formProps} authorName={authorName} />
@@ -246,6 +229,10 @@ function NotificationForm({
     [formatError, t, zone],
   );
   const schema = useMemo(() => notificationFormSchema(zone, saved), [zone, saved]);
+  const defaultValues = useMemo(
+    () => (saved ? toFormValues(saved, zone) : EMPTY_NOTIFICATION_FORM),
+    [saved, zone],
+  );
   const errorTitle = t(
     saved ? 'system-notifications.admin.update-error' : 'system-notifications.admin.create-error',
   );
@@ -255,11 +242,14 @@ function NotificationForm({
       saved
         ? updateNotification(toPayload(values, zone, authorId, saved))
         : createNotification(toPayload(values, zone, authorId)),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
+    onSuccess: async () => {
+      const lists = {
         queryKey: queryKeys.systemNotifications.all,
-        predicate: (query) => query.queryKey[1] !== 'detail',
-      });
+        predicate: ({ queryKey }: { queryKey: readonly unknown[] }) => queryKey[1] !== 'detail',
+      };
+      await queryClient.cancelQueries(lists);
+      if (!save.isCurrent()) return;
+      void queryClient.invalidateQueries(lists);
       toast.success(
         t(
           saved
@@ -287,16 +277,23 @@ function NotificationForm({
     },
   });
   const form = useAppForm({
-    defaultValues: saved ? toFormValues(saved, zone) : EMPTY_NOTIFICATION_FORM,
+    defaultValues,
     validationLogic: revalidateLogic({ mode: 'submit', modeAfterSubmission: 'change' }),
     validators: { onDynamic: schema },
     onSubmit: ({ value }) => save.mutateAsync(value, { onSuccess: onDone }).catch(() => undefined),
+    onSubmitInvalid: ({ formApi }) => {
+      const fields = [
+        'message',
+        'startDate',
+        'startTime',
+        'expiryDate',
+        'expiryTime',
+        'title',
+      ] as const;
+      const invalid = fields.find((name) => formApi.getFieldMeta(name)?.errors.length);
+      if (invalid) document.getElementById(invalid)?.focus();
+    },
   });
-  const startDate = useStore(form.store, (state) => state.values.startDate);
-  const expiryDate = useStore(form.store, (state) => state.values.expiryDate);
-  const validStart = parseEditableDate(startDate) ? startDate : undefined;
-  const validExpiry = parseEditableDate(expiryDate) ? expiryDate : undefined;
-
   function clearRefusal(name: 'message' | 'expiryDate') {
     if (!form.getFieldMeta(name)?.errorMap.onServer) return;
     form.setFieldMeta(name, (meta) => ({
@@ -337,55 +334,21 @@ function NotificationForm({
             </div>
             <form.AppField name="message" listeners={{ onChange: () => clearRefusal('message') }}>
               {(field) => (
-                <field.TextareaField label={t('system-notifications.admin.message')} required />
+                <field.TextareaField
+                  dir="auto"
+                  label={t('system-notifications.admin.message')}
+                  required
+                />
               )}
             </form.AppField>
-            {DATE_FIELDS.map(({ name, time, dateLabel, timeLabel, defaultTime }) => {
-              const isStart = name === 'startDate';
-              const hasDate = Boolean(isStart ? validStart : validExpiry);
-              const label = t(dateLabel);
-              return (
-                <div className="grid grid-cols-2 gap-3" key={name}>
-                  <form.AppField
-                    name={name}
-                    listeners={{
-                      onChange: ({ value }) => {
-                        clearRefusal('expiryDate');
-                        if (!value) form.setFieldValue(time, '');
-                        else if (parseEditableDate(value) && !form.getFieldValue(time)) {
-                          form.setFieldValue(time, defaultTime);
-                        }
-                      },
-                    }}
-                  >
-                    {(field) => (
-                      <field.DateField
-                        clearLabel={t('data-table.clear-filter', { label })}
-                        earliest={isStart ? undefined : validStart}
-                        label={label}
-                        latest={isStart ? validExpiry : undefined}
-                      />
-                    )}
-                  </form.AppField>
-                  <form.AppField
-                    name={time}
-                    listeners={{ onChange: () => clearRefusal('expiryDate') }}
-                  >
-                    {(field) => (
-                      <field.TextField
-                        disabled={!hasDate}
-                        label={t(timeLabel)}
-                        required={hasDate}
-                        type="time"
-                      />
-                    )}
-                  </form.AppField>
-                </div>
-              );
-            })}
+            <NotificationDateFields
+              clearExpiryRefusal={() => clearRefusal('expiryDate')}
+              form={form}
+            />
             <form.AppField name="title">
               {(field) => (
                 <field.TextField
+                  dir="auto"
                   description={t('system-notifications.admin.characters-left', {
                     count: TITLE_MAX - field.state.value.length,
                   })}
@@ -407,6 +370,63 @@ function NotificationForm({
     </FormDialogForm>
   );
 }
+
+const NotificationDateFields = withForm({
+  defaultValues: EMPTY_NOTIFICATION_FORM,
+  props: { clearExpiryRefusal: () => {} },
+  render: function NotificationDateFields({ form, clearExpiryRefusal }) {
+    const { t } = useTranslation();
+    const startDate = useStore(form.store, (state) => state.values.startDate);
+    const expiryDate = useStore(form.store, (state) => state.values.expiryDate);
+    const validStart = isEditableDateValue(startDate) ? startDate : undefined;
+    const validExpiry = isEditableDateValue(expiryDate) ? expiryDate : undefined;
+
+    return (
+      <>
+        {DATE_FIELDS.map(({ name, time, dateLabel, timeLabel, defaultTime }) => {
+          const isStart = name === 'startDate';
+          const hasDate = Boolean(isStart ? validStart : validExpiry);
+          const label = t(dateLabel);
+          return (
+            <div className="grid grid-cols-2 gap-3" key={name}>
+              <form.AppField
+                name={name}
+                listeners={{
+                  onChange: ({ value }) => {
+                    clearExpiryRefusal();
+                    if (!value) form.setFieldValue(time, '');
+                    else if (isEditableDateValue(value) && !form.getFieldValue(time)) {
+                      form.setFieldValue(time, defaultTime);
+                    }
+                  },
+                }}
+              >
+                {(field) => (
+                  <field.DateField
+                    clearLabel={t('data-table.clear-filter', { label })}
+                    earliest={isStart ? undefined : validStart}
+                    label={label}
+                    latest={isStart ? validExpiry : undefined}
+                  />
+                )}
+              </form.AppField>
+              <form.AppField name={time} listeners={{ onChange: () => clearExpiryRefusal() }}>
+                {(field) => (
+                  <field.TextField
+                    disabled={!hasDate}
+                    label={t(timeLabel)}
+                    required={hasDate}
+                    type="time"
+                  />
+                )}
+              </form.AppField>
+            </div>
+          );
+        })}
+      </>
+    );
+  },
+});
 
 function NotificationFormSkeleton({
   editing,

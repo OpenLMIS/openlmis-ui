@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { BellIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { type ComponentProps, lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -76,52 +76,14 @@ function SystemNotificationsPage() {
   const edit = useCallback((id: string) => openDialog({ notification: id }), [openDialog]);
   const [dialogMounted, setDialogMounted] = useState(target !== undefined);
   if (target !== undefined && !dialogMounted) setDialogMounted(true);
-  const [openedAuthors, setOpenedAuthors] = useState(false);
-  const authors = useQuery({
-    ...allUsersOptions(),
-    enabled: canFilterAuthors && (openedAuthors || Boolean(search.authorId)),
-  });
-  const options = useMemo(
-    () =>
-      (authors.data ?? []).map((user) => ({
-        value: user.id,
-        label: fullName(user) || user.username,
-        description: user.username,
-      })),
-    [authors.data],
-  );
-  const authorFilter = canFilterAuthors
-    ? {
-        options:
-          search.authorId &&
-          authors.isSuccess &&
-          !options.some(({ value }) => value === search.authorId)
-            ? [
-                ...options,
-                { value: search.authorId, label: t('system-notifications.admin.unknown-author') },
-              ]
-            : options,
-        emptyMessage: authors.isError
-          ? t('system-notifications.admin.authors-error')
-          : authors.isPending
-            ? t('system-notifications.admin.authors-loading')
-            : t('data-table.no-matches'),
-        status: authors.data
-          ? t('system-notifications.admin.author-status', { count: options.length })
-          : undefined,
-        onOpenChange: (open: boolean) => {
-          if (open) setOpenedAuthors(true);
-        },
-      }
-    : undefined;
 
   return (
     <Workspace>
       <NotificationsHeader />
       <WorkspaceContent>
         <div className="flex flex-col gap-4 @4xl/main:gap-6" ref={measure}>
-          <NotificationsToolbar
-            authorFilter={authorFilter}
+          <NotificationsPageToolbar
+            canFilterAuthors={canFilterAuthors}
             columnView={columnView}
             layout={layout}
             onAdd={() => openDialog({ notification: 'new' })}
@@ -163,6 +125,56 @@ function SystemNotificationsPage() {
       </WorkspaceContent>
     </Workspace>
   );
+}
+
+function NotificationsPageToolbar({
+  canFilterAuthors,
+  ...props
+}: Omit<ComponentProps<typeof NotificationsToolbar>, 'authorFilter'> & {
+  canFilterAuthors: boolean;
+}) {
+  const { t } = useTranslation();
+  const { search } = props;
+  const [openedAuthors, setOpenedAuthors] = useState(false);
+  const authors = useQuery({
+    ...allUsersOptions(),
+    enabled: canFilterAuthors && (openedAuthors || Boolean(search.authorId)),
+  });
+  const options = useMemo(
+    () =>
+      (authors.data ?? []).map((user) => ({
+        value: user.id,
+        label: fullName(user) || user.username,
+        description: user.username,
+      })),
+    [authors.data],
+  );
+  const authorFilter = canFilterAuthors
+    ? {
+        options:
+          search.authorId &&
+          authors.isSuccess &&
+          !options.some(({ value }) => value === search.authorId)
+            ? [
+                ...options,
+                { value: search.authorId, label: t('system-notifications.admin.unknown-author') },
+              ]
+            : options,
+        emptyMessage: authors.isError
+          ? t('system-notifications.admin.authors-error')
+          : authors.isPending
+            ? t('system-notifications.admin.authors-loading')
+            : t('data-table.no-matches'),
+        status: authors.data
+          ? t('system-notifications.admin.author-status', { count: options.length })
+          : undefined,
+        onOpenChange: (open: boolean) => {
+          if (open) setOpenedAuthors(true);
+        },
+      }
+    : undefined;
+
+  return <NotificationsToolbar {...props} authorFilter={authorFilter} />;
 }
 
 function NotificationsHeader() {

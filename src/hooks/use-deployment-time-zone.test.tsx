@@ -13,6 +13,7 @@ import {
 } from '@/features/reference-data/api/queries';
 import { useDeploymentTimeZone } from '@/hooks/use-deployment-time-zone';
 import { client } from '@/integrations/axios';
+import { readDeploymentTimeZone, verifiedStoredTimeZone } from '@/lib/deployment-time-zone';
 
 vi.hoisted(() => {
   localStorage.setItem('openlmis-ui.date-format', 'MM/dd/yyyy');
@@ -172,4 +173,11 @@ it('renders the stored deployment format in Portuguese, keeps it offline and fin
   expect(date).toHaveValue('02/3/2024');
   await user.click(screen.getByRole('button', { name: 'Next' }));
   expect(date).toHaveValue('2024.02.03');
+});
+
+it('distinguishes a server-confirmed UTC time zone from a stored default', () => {
+  localStorage.setItem('openlmis-ui.time-zone', 'UTC');
+  expect(verifiedStoredTimeZone()).toBeNull();
+  readDeploymentTimeZone({ timeZoneId: 'UTC' });
+  expect(verifiedStoredTimeZone()).toBe('UTC');
 });

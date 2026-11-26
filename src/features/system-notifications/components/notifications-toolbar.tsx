@@ -60,11 +60,11 @@ export function NotificationsToolbar({
                 contains(option.label, query) || contains(option.description ?? '', query)
               }
               label={t('system-notifications.admin.author')}
-              limit={authorFilter.options.length}
               onValueChange={(authorId) =>
                 onFilterChange({ authorId: authorId || undefined, page: undefined })
               }
               value={search.authorId ?? ''}
+              virtualized
             />
           )}
           <Label htmlFor={displayedId}>

@@ -45,6 +45,25 @@ describe('notification form', () => {
     );
   });
 
+  it('keeps sub-millisecond precision when comparing an unchanged bound', () => {
+    const precise = { ...saved, startDate: '2026-01-01T12:00:59.999500Z' };
+    const result = notificationFormSchema(utc, precise).safeParse({
+      ...toFormValues(precise, utc),
+      expiryTime: '12:00',
+    });
+    expect(result.error?.issues).toMatchObject([{ path: ['expiryDate'] }]);
+  });
+
+  it('accepts a deployment date even when the browser skipped that entire local day', () => {
+    expect(
+      notificationFormSchema(utc).safeParse({
+        ...draft,
+        startDate: '2011-12-30',
+        startTime: '01:00',
+      }).success,
+    ).toBe(true);
+  });
+
   it('compares a retained later DST occurrence with the earlier occurrence used for edits', () => {
     const zone = 'Europe/Warsaw';
     const repeated = {
