@@ -81,6 +81,15 @@ export function FormMessagesProvider({
   return <FormMessagesContext value={messages}>{children}</FormMessagesContext>;
 }
 
+export function FormErrorMessagesProvider({
+  children,
+  formatError,
+}: Pick<FormMessagesProviderProps, 'children' | 'formatError'>) {
+  const messages = use(FormMessagesContext);
+  const value = useMemo(() => ({ ...messages, formatError }), [messages, formatError]);
+  return <FormMessagesContext value={value}>{children}</FormMessagesContext>;
+}
+
 export function useFormatError() {
   return use(FormMessagesContext).formatError;
 }

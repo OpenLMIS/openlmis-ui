@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { BellIcon } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListError } from '@/components/app-shell/list-error';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -34,6 +34,12 @@ import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { RIGHTS } from '@/lib/rights';
 import { fullName } from '@/lib/text';
 
+const NotificationFormDialog = lazy(() =>
+  import('@/features/system-notifications/components/notification-form-dialog').then((module) => ({
+    default: module.NotificationFormDialog,
+  })),
+);
+
 const CLOSED_DIALOGS = { notification: undefined } satisfies Partial<NotificationsSearch>;
 const useNotificationsView = () =>
   useCardView(SYSTEM_NOTIFICATION_HIDEABLE_COLUMNS, 'system-notifications.column-visibility');
@@ -61,11 +67,15 @@ function SystemNotificationsPage() {
     select: ({ notification: _notification, ...list }): NotificationsSearch => list,
     structuralSharing: true,
   });
+  const target = Route.useSearch({ select: (value) => value.notification });
   const { canFilterAuthors } = Route.useLoaderData();
   const query = Route.useLoaderDeps({ select: (deps) => deps.query });
   const { measure, cards, columnView, layout } = useNotificationsView();
-  const { updateSearch, openDialog } = useSearchNavigation<NotificationsSearch>(CLOSED_DIALOGS);
+  const { updateSearch, openDialog, closeDialog } =
+    useSearchNavigation<NotificationsSearch>(CLOSED_DIALOGS);
   const edit = useCallback((id: string) => openDialog({ notification: id }), [openDialog]);
+  const [dialogMounted, setDialogMounted] = useState(target !== undefined);
+  if (target !== undefined && !dialogMounted) setDialogMounted(true);
   const [openedAuthors, setOpenedAuthors] = useState(false);
   const authors = useQuery({
     ...allUsersOptions(),
@@ -145,6 +155,11 @@ function SystemNotificationsPage() {
             />
           </QueryBoundary>
         </div>
+        {dialogMounted && (
+          <Suspense fallback={null}>
+            <NotificationFormDialog onClose={closeDialog} target={target} />
+          </Suspense>
+        )}
       </WorkspaceContent>
     </Workspace>
   );
