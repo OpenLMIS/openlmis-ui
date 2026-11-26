@@ -1,8 +1,7 @@
 import { PlusIcon } from 'lucide-react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataTableToolbar } from '@/components/data-table/data-table';
-import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { DataTableAddToolbar } from '@/components/data-table/data-table-add-toolbar';
 import { Button } from '@/components/ui/button';
 import {
   DEFAULT_REPORT_CATEGORIES_SORT,
@@ -28,38 +27,25 @@ export function ReportCategoriesToolbar({
   disabled = false,
 }: ReportCategoriesToolbarProps) {
   const { t } = useTranslation();
-  const add = (
-    <Button
-      disabled={disabled}
-      onClick={(event) => onAdd(event.currentTarget)}
-      ref={addRef}
-      size="lg"
-      width="full"
-    >
-      <PlusIcon data-icon="inline-start" />
-      {t('report-categories.add')}
-    </Button>
-  );
-
-  if (layout === 'table') {
-    return (
-      <DataTableToolbar>
-        <div className="w-full @2xl/main:ms-auto @2xl/main:w-auto">{add}</div>
-      </DataTableToolbar>
-    );
-  }
   return (
-    <DataTableToolbar>
-      <DataTableViewOptions
-        size="lg"
+    <DataTableAddToolbar
+      disabled={disabled}
+      layout={layout}
+      sort={{
+        columns: [{ id: 'name', label: t('report-categories.name') }],
+        ...searchSort(search, DEFAULT_REPORT_CATEGORIES_SORT, onSortChange),
+      }}
+    >
+      <Button
         disabled={disabled}
-        layout={layout}
-        sort={{
-          columns: [{ id: 'name', label: t('report-categories.name') }],
-          ...searchSort(search, DEFAULT_REPORT_CATEGORIES_SORT, onSortChange),
-        }}
-      />
-      <div className="flex-1">{add}</div>
-    </DataTableToolbar>
+        onClick={(event) => onAdd(event.currentTarget)}
+        ref={addRef}
+        size="lg"
+        width="full"
+      >
+        <PlusIcon data-icon="inline-start" />
+        {t('report-categories.add')}
+      </Button>
+    </DataTableAddToolbar>
   );
 }
