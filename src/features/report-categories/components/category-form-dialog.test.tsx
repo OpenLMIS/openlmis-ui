@@ -117,8 +117,12 @@ it('refreshes the Reports category lookup and embedded names after a rename', as
 
 it('locks the reopened Edit form until it has reread the server name', async () => {
   const user = userEvent.setup();
-  let storedCategory = category;
-  vi.spyOn(client, 'get').mockImplementation(async () => ({ data: storedCategory }));
+  const reread = Promise.withResolvers<{ data: typeof category }>();
+  const get = vi
+    .spyOn(client, 'get')
+    .mockResolvedValueOnce({ data: category })
+    .mockResolvedValueOnce({ data: category })
+    .mockReturnValueOnce(reread.promise);
   const request = Promise.withResolvers<{ data: typeof category }>();
   const put = vi.spyOn(client, 'put').mockReturnValue(request.promise);
   const { setTarget } = renderCategoryDialog(category.id);
@@ -138,12 +142,14 @@ it('locks the reopened Edit form until it has reread the server name', async () 
   expect(await input()).toBeDisabled();
   expect(await input()).toHaveValue(category.name);
   expect(save()).toHaveAttribute('aria-disabled', 'true');
-  storedCategory = { ...category, name: 'Supplies' };
   request.resolve({ data: { ...category, name: 'Stock renamed' } });
+  await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+  expect(screen.queryByRole('textbox', { name: /report-categories.name/ })).toBeNull();
+  reread.resolve({ data: { ...category, name: 'Supplies' } });
   await waitFor(() => {
     const reopenedInput = screen.getByRole('textbox', { name: /report-categories.name/ });
     expect(reopenedInput).toBeEnabled();
-    expect(reopenedInput).toHaveValue(storedCategory.name);
+    expect(reopenedInput).toHaveValue('Supplies');
   });
   expect(save()).not.toHaveAttribute('aria-disabled', 'true');
   expect(put).toHaveBeenCalledOnce();

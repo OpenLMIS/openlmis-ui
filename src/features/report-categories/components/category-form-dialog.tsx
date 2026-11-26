@@ -1,6 +1,6 @@
 import { revalidateLogic } from '@tanstack/react-form';
 import { useIsMutating, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { type RefObject, useRef } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { QueryBoundary } from '@/components/app-shell/query-boundary';
@@ -104,6 +104,9 @@ function CategoryDialogContent({
   const title = t(isNew ? 'report-categories.form.add-title' : 'report-categories.form.edit-title');
   const submit = t(isNew ? 'report-categories.form.add' : 'report-categories.form.save');
   const formProps = { isSaving, onDone, submit, title };
+  const [savingAtOpen] = useState(isSaving);
+  const [reread, setReread] = useState(false);
+  if (savingAtOpen && !isSaving && !reread) setReread(true);
   if (isNew) return <CategoryForm {...formProps} />;
 
   return (
@@ -137,20 +140,22 @@ function CategoryDialogContent({
         )
       }
       pendingFallback={<CategoryFormSkeleton submit={submit} title={title} />}
-      resetKey={opening}
+      resetKey={`${opening}-${reread}`}
     >
-      <ExistingCategory {...formProps} opening={opening} target={target} />
+      <ExistingCategory {...formProps} opening={opening} reread={reread} target={target} />
     </QueryBoundary>
   );
 }
 
 function ExistingCategory({
   opening,
+  reread,
   target,
   ...props
-}: CategoryFormProps & { opening: number; target: string }) {
-  const { data } = useSuspenseQuery(reportCategoryDetailOptions(target, 'edit', opening));
-  return <CategoryForm {...props} category={data} />;
+}: CategoryFormProps & { opening: number; reread: boolean; target: string }) {
+  const detail = reportCategoryDetailOptions(target, 'edit', opening);
+  const { data } = useSuspenseQuery({ ...detail, queryKey: [...detail.queryKey, reread ? 1 : 0] });
+  return <CategoryForm {...props} category={data} key={String(reread)} />;
 }
 
 function CategoryForm({

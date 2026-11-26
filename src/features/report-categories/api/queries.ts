@@ -32,11 +32,8 @@ export async function refreshReportCategories(
   const keys: QueryKey[] = [reportCategoryListsKey];
   if (renamed) keys.push(queryKeys.dashboardReports.all, queryKeys.reportTemplates.all);
 
-  const detailKey = renamed && reportCategoryDetailKey(renamed.id, 'edit');
-  const cancelKeys = detailKey ? [...keys, detailKey] : keys;
-  await Promise.all(cancelKeys.map((queryKey) => client.cancelQueries({ queryKey })));
+  await Promise.all(keys.map((queryKey) => client.cancelQueries({ queryKey })));
   if (!isCurrent()) return;
 
   for (const queryKey of keys) void client.invalidateQueries({ queryKey });
-  if (detailKey) await client.refetchQueries({ queryKey: detailKey, type: 'active' });
 }
