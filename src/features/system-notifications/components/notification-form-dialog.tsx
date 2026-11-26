@@ -15,7 +15,7 @@ import {
 import { formatTimestamp, isEditableDateValue } from '@/components/form/date-value';
 import { useAppForm, withForm } from '@/components/form/form';
 import { FormErrorMessagesProvider, useFormatError } from '@/components/form/form-messages';
-import { SettingsItem } from '@/components/form/settings-list';
+import { SettingsItem, SettingsList } from '@/components/form/settings-list';
 import {
   FormDialog,
   FormDialogBody,
@@ -307,7 +307,7 @@ function NotificationForm({
                 title={errorTitle}
               />
             )}
-            <div>
+            <SettingsList density="compact">
               <SettingsItem label={t('system-notifications.admin.author')}>
                 {saved ? (
                   <NotificationAuthor authorId={authorId} />
@@ -323,7 +323,7 @@ function NotificationForm({
                   })}
                 </SettingsItem>
               )}
-            </div>
+            </SettingsList>
             <form.AppField name="message" listeners={{ onChange: () => clearRefusal('message') }}>
               {(field) => (
                 <field.TextareaField
@@ -448,7 +448,7 @@ function NotificationFormSkeleton({
       </FormDialogHeader>
       <FormDialogBody>
         <FieldGroup>
-          <div>
+          <SettingsList density="compact">
             <SettingsItem label={t('system-notifications.admin.author')}>
               <SkeletonLine width="short" />
             </SettingsItem>
@@ -457,7 +457,7 @@ function NotificationFormSkeleton({
                 <SkeletonLine width="short" />
               </SettingsItem>
             )}
-          </div>
+          </SettingsList>
           <FieldSkeleton
             control="textarea"
             label={t('system-notifications.admin.message')}

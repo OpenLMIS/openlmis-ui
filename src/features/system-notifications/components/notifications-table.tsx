@@ -43,9 +43,35 @@ function notificationLabel({ title, message }: SystemNotification) {
 
 function NotificationTitle({ notice }: { notice: SystemNotification }) {
   const inCards = useInCards();
+  if (inCards) {
+    return (
+      <span className="wrap-anywhere whitespace-normal font-medium" dir="auto">
+        {notificationLabel(notice)}
+      </span>
+    );
+  }
   return (
-    <span className="wrap-anywhere whitespace-normal font-medium" dir="auto">
-      {inCards ? notificationLabel(notice) : notice.title}
+    <span className="flex">
+      <span className="min-w-0 truncate font-medium" dir="auto" title={notice.title ?? undefined}>
+        {notice.title}
+      </span>
+    </span>
+  );
+}
+
+function NotificationMessage({ message }: { message: string }) {
+  const inCards = useInCards();
+  return (
+    <span
+      className={
+        inCards
+          ? 'wrap-anywhere whitespace-pre-wrap'
+          : 'line-clamp-2 wrap-anywhere whitespace-pre-wrap'
+      }
+      dir="auto"
+      title={inCards ? undefined : message}
+    >
+      {message}
     </span>
   );
 }
@@ -81,8 +107,8 @@ function createColumns(
       ...labeled(t('system-notifications.admin.active'), 'w-28'),
       cell: ({ getValue }) => (
         <FlagBadge
-          falseLabel={t('system-notifications.admin.inactive')}
-          trueLabel={t('system-notifications.admin.active')}
+          falseLabel={t('system-notifications.admin.no')}
+          trueLabel={t('system-notifications.admin.yes')}
           value={getValue()}
         />
       ),
@@ -92,19 +118,15 @@ function createColumns(
       id: 'displayed',
       cell: ({ row }) => (
         <FlagBadge
-          falseLabel={t('system-notifications.admin.not-displayed')}
-          trueLabel={t('system-notifications.admin.displayed')}
+          falseLabel={t('system-notifications.admin.no')}
+          trueLabel={t('system-notifications.admin.yes')}
           value={onlyDisplayed || isDisplayed(row.original, Date.now())}
         />
       ),
     }),
     columnHelper.accessor('message', {
       ...labeled(t('system-notifications.admin.message'), 'w-48'),
-      cell: ({ getValue }) => (
-        <span className="wrap-anywhere whitespace-pre-wrap" dir="auto">
-          {getValue()}
-        </span>
-      ),
+      cell: ({ getValue }) => <NotificationMessage message={getValue()} />,
     }),
     columnHelper.display({
       id: 'actions',

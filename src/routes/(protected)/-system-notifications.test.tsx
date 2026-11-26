@@ -184,7 +184,7 @@ it('clamps the filtered list after saving its last displayed notice on page two'
 
   const router = renderNotificationsPage('?displayed=true&page=2&size=1');
   expect(await screen.findByText('Maintenance')).toBeVisible();
-  expect(screen.getByText('system-notifications.admin.displayed')).toBeVisible();
+  expect(screen.getAllByText('system-notifications.admin.yes')[0]).toBeVisible();
   expect(screen.queryByText(first.title)).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'system-notifications.admin.edit-name' }));
 
