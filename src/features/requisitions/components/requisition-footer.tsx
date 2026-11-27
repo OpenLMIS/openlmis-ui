@@ -7,6 +7,7 @@ import type {
   requisitionCapabilities,
 } from '@/features/requisitions/lib/capabilities';
 import { useOnline } from '@/lib/online';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 type FooterAction = Extract<
   RequisitionAction,
@@ -60,7 +61,7 @@ export function RequisitionFooter({
         {button('delete')}
         {button('skip')}
       </div>
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2" data-tour={TOUR_ANCHORS.requisitionActions}>
         {button('sync')}
         {button('submit')}
         {button('submitAndAuthorize')}

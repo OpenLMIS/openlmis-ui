@@ -11,6 +11,7 @@ import { FeatureFlagsSettings } from '@/features/system-settings/components/feat
 import { savedConfiguration } from '@/features/system-settings/components/settings-fixtures';
 import { SystemSettingsWorkspace } from '@/features/system-settings/components/system-settings-workspace';
 import type { AppConfigurationDto } from '@/features/system-settings/lib/types';
+import { ADMIN_FLAG_KEYS, FEATURE_FLAGS } from '@/lib/feature-flags';
 import { httpError } from '@/test-utils/http-error';
 import { renderPage } from '@/test-utils/render-page';
 
@@ -184,7 +185,8 @@ describe('FeatureFlagsSettings', () => {
       screen.getByRole('button', { name: 'system-settings.flags.clear-filters' }),
     );
 
-    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(3));
+    const booleanFlags = ADMIN_FLAG_KEYS.filter((key) => FEATURE_FLAGS[key].type === 'boolean');
+    await waitFor(() => expect(screen.getAllByRole('switch')).toHaveLength(booleanFlags.length));
     expect(
       screen.getByRole('textbox', { name: 'system-settings.flags.search-label' }),
     ).toHaveFocus();

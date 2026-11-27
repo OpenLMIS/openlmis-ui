@@ -59,6 +59,13 @@ export const FEATURE_FLAGS = {
     descriptionKey: 'feature-flags.gs1-scanning.description',
     usedByKey: 'feature-flags.gs1-scanning.used-by',
   },
+  ONBOARDING: {
+    type: 'boolean',
+    default: true,
+    labelKey: 'feature-flags.onboarding.label',
+    descriptionKey: 'feature-flags.onboarding.description',
+    usedByKey: 'feature-flags.onboarding.used-by',
+  },
   QUANTITY_UNIT_OPTION: enumFlag({
     options: ['PACKS', 'DOSES', 'BOTH'],
     optionKeys: QUANTITY_UNIT_KEYS,

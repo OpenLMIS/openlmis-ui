@@ -68,6 +68,7 @@ import { programGrants } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import { isSecureOrigin } from '@/lib/secure-context';
 import { type SearchChange, searchSort } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { requireRequisitionViewWithDevice } from '@/routes/-requisition-access';
 
 const NO_DIALOGS = {} satisfies Partial<RequisitionSearch>;
@@ -519,18 +520,22 @@ function RequisitionsBody({
   }
   return (
     <>
-      <RequisitionSearchPicker
-        applied={search.facility}
-        onDraftChange={(facilityId) => {
-          setDraft(facilityId);
-          setDraftProgram(search.program);
-        }}
-        onSearch={onSearch}
-        options={options}
-      />
+      <div data-tour={TOUR_ANCHORS.requisitionsPicker}>
+        <RequisitionSearchPicker
+          applied={search.facility}
+          onDraftChange={(facilityId) => {
+            setDraft(facilityId);
+            setDraftProgram(search.program);
+          }}
+          onSearch={onSearch}
+          options={options}
+        />
+      </div>
       <div className="flex flex-col gap-4">
         {toolbar}
-        {outcome}
+        <div className="flex flex-col gap-4" data-tour={TOUR_ANCHORS.requisitionsResults}>
+          {outcome}
+        </div>
       </div>
     </>
   );
