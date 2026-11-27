@@ -27,6 +27,7 @@ import {
 } from '@/features/report-categories/lib/search';
 import type { ReportCategory } from '@/features/report-categories/lib/types';
 import { useCardLayout } from '@/hooks/use-card-view';
+import { useDeleteRowHint } from '@/hooks/use-delete-row-hint';
 import { useSearchNavigation } from '@/hooks/use-search-navigation';
 import { RIGHTS } from '@/lib/rights';
 
@@ -77,12 +78,7 @@ function ReportCategoriesPage() {
   const addButton = useRef<HTMLButtonElement>(null);
   const formOpener = useRef<HTMLButtonElement | null>(null);
   const deleteOpener = useRef<HTMLButtonElement | null>(null);
-  const [deleteHint, setDeleteHint] = useState<ReportCategory>();
-  const [previousDelete, setPreviousDelete] = useState(deleting);
-  if (deleting !== previousDelete) {
-    setPreviousDelete(deleting);
-    if (deleting !== deleteHint?.id) setDeleteHint(undefined);
-  }
+  const [deleteHint, setDeleteHint] = useDeleteRowHint<ReportCategory>(deleting);
   const [formMounted, setFormMounted] = useState(target !== undefined);
   const [deleteMounted, setDeleteMounted] = useState(deleting !== undefined);
   if (target !== undefined && !formMounted) setFormMounted(true);
@@ -107,7 +103,7 @@ function ReportCategoriesPage() {
       setDeleteHint(row);
       void openDialog({ delete: row.id });
     },
-    [openDialog],
+    [openDialog, setDeleteHint],
   );
 
   return (

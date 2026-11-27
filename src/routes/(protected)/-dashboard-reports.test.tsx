@@ -8,16 +8,19 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getI18n } from 'react-i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
+import { permissionsOptions } from '@/features/auth/api/queries';
 import { useLoginData } from '@/features/auth/store/login-data';
+import { dashboardReportsAdminOptions } from '@/features/dashboard-reports/api/queries';
 import type { ManagedDashboardReport } from '@/features/dashboard-reports/lib/types';
 import { client } from '@/integrations/axios';
+import { parsePermissions } from '@/lib/permissions';
 import { RIGHTS } from '@/lib/rights';
 import { Route } from '@/routes/(protected)/_protected.administration.reports';
-import en from '../../../public/locales/en.json';
 
 HTMLElement.prototype.getAnimations ??= () => [];
 
@@ -64,7 +67,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderReportsPage(search: string) {
+async function renderReportsPage(search: string, { preloadList = false } = {}) {
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -77,6 +80,10 @@ function renderReportsPage(search: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 30_000 } },
   });
+  queryClient.setQueryData(
+    permissionsOptions('admin').queryKey,
+    parsePermissions([RIGHTS.reportsManage]),
+  );
   const root = createRootRouteWithContext<{ queryClient: QueryClient }>()();
   const group = createRoute({ getParentRoute: () => root, id: '(protected)' });
   const layout = createRoute({ getParentRoute: () => group, id: '_protected' });
@@ -96,6 +103,10 @@ function renderReportsPage(search: string) {
     context: { queryClient },
     history: createMemoryHistory({ initialEntries: [pagePath + search] }),
   } as never) as AnyRouter;
+  if (preloadList) {
+    await router.load();
+    await queryClient.ensureQueryData(dashboardReportsAdminOptions());
+  }
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
@@ -106,7 +117,6 @@ function renderReportsPage(search: string) {
 
 function mockList(getRows: () => ManagedDashboardReport[], detail?: Promise<unknown>) {
   return vi.spyOn(client, 'get').mockImplementation(async (url, config) => {
-    if (url === '/users/admin/permissionStrings') return { data: [RIGHTS.reportsManage] };
     if (url === detailUrl && detail) return detail;
     if (url !== listUrl) throw new Error(`Unexpected request: ${url}`);
     expect(config?.params).toBeUndefined();
@@ -115,17 +125,16 @@ function mockList(getRows: () => ManagedDashboardReport[], detail?: Promise<unkn
 }
 
 it('sorts names and categories locally across pages without sending list parameters', async () => {
-  const user = userEvent.setup();
   const get = mockList(() => [stock, finance, orders]);
-  renderReportsPage('?page=2&size=1');
+  await renderReportsPage('?page=2&size=1', { preloadList: true });
 
-  expect(await screen.findByRole('cell', { name: 'Orders' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'dashboard-reports.name' }));
-  expect(await screen.findByRole('cell', { name: 'Stock' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'dashboard-reports.category' }));
-  expect(await screen.findByRole('cell', { name: 'Orders' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Next Page' }));
-  expect(await screen.findByRole('cell', { name: 'Finance' })).toBeVisible();
+  expect(screen.getByText('Orders')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'dashboard-reports.name' }));
+  expect(await screen.findByText('Stock')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'dashboard-reports.category' }));
+  expect(await screen.findByText('Orders')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Next Page' }));
+  expect(await screen.findByText('Finance')).toBeVisible();
   expect(get.mock.calls.filter(([url]) => url === listUrl)).toEqual([
     [listUrl, { signal: expect.any(AbortSignal) }],
   ]);
@@ -143,7 +152,7 @@ it('reads the current name when Forward interrupts a row Delete closing animatio
   });
   const fresh = { ...stock, name: 'Warehouse' };
   const get = mockList(() => [stock], Promise.resolve({ data: fresh }));
-  const router = renderReportsPage('');
+  const router = await renderReportsPage('');
 
   await user.click(await screen.findByRole('button', { name: deleteLabel }));
   const popup = await screen.findByRole('alertdialog', { name: deleteTitle });
@@ -167,11 +176,11 @@ it('closes Delete and replaces the page after deleting its only row', async () =
   const user = userEvent.setup();
   let rows = [finance, orders, stock];
   const get = mockList(() => rows);
-  vi.spyOn(client, 'delete').mockImplementation(async () => {
+  const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
     rows = [finance, orders];
     return { status: 204 };
   });
-  const router = renderReportsPage('?page=3&size=1');
+  const router = await renderReportsPage('?page=3&size=1');
 
   await user.click(await screen.findByRole('button', { name: deleteLabel }));
   const dialog = await screen.findByRole('alertdialog', { name: deleteTitle });
@@ -181,5 +190,6 @@ it('closes Delete and replaces the page after deleting its only row', async () =
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(router.state.location.search).toEqual({ page: 2, size: 1 });
   expect(router.history.canGoBack()).toBe(false);
+  expect(remove).toHaveBeenCalledExactlyOnceWith(detailUrl);
   expect(get.mock.calls.filter(([url]) => url === listUrl)).toHaveLength(2);
 });

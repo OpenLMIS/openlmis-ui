@@ -13,12 +13,12 @@ import userEvent from '@testing-library/user-event';
 import { getI18n } from 'react-i18next';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import en from '@/../public/locales/en.json';
 import { useLoginData } from '@/features/auth/store/login-data';
 import type { ReportCategoriesQuery, ReportCategory } from '@/features/report-categories/lib/types';
 import { client } from '@/integrations/axios';
 import { RIGHTS } from '@/lib/rights';
 import { Route } from '@/routes/(protected)/_protected.administration.report-categories';
-import en from '../../../public/locales/en.json';
 
 HTMLElement.prototype.getAnimations ??= () => [];
 

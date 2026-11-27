@@ -37,6 +37,7 @@ import type {
   ValidReasonsFilter,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
+import { completePageContent } from '@/lib/complete-page-content';
 import { BY_IDS_BATCH, fetchByIds, fetchIdBatches } from '@/lib/fetch-by-ids';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
@@ -522,8 +523,5 @@ export async function fetchAllReportCategories(signal?: AbortSignal) {
     signal,
     params: { size: 0 },
   });
-  if (data.totalPages > 1 || data.totalElements !== data.content.length) {
-    throw new Error('The report catalog response is incomplete');
-  }
-  return data.content;
+  return completePageContent(data);
 }
