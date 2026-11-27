@@ -294,6 +294,7 @@ edits, which have no prop for TypeScript to detect:
 | `select.tsx` | Default `alignItemWithTrigger` to `false`; the list grows to its longest option (at least the trigger and 9rem), wrapping only past the screen |
 | `button.tsx` | Dim both `data-disabled` and `:disabled`, including `focusableWhenDisabled` |
 | `button.tsx` | Keep warning and `warning-ghost` tints on hover with `tone="sidebar"` |
+| `button.tsx` | Keep `data-disabled` buttons with `data-disabled-reason` hoverable, so disabled-action reason tooltips open |
 | `button.tsx` | Preserve `wrap="normal"` for wrapping action labels in cards |
 | `button.tsx` | Preserve `align="between"` for labels with end-aligned values |
 | `alert.tsx` | Preserve `actionLayout="flow"` for actions below the text and `actionLayout="inline"` for an end-aligned action beside the text in wider workspaces and below it on narrow screens |

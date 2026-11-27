@@ -21,14 +21,17 @@ const third = catalogRecord(3, 'Visit');
 const source = catalogRecord(4, 'Public funding');
 const alternateSource = catalogRecord(5, 'External funding');
 
-it('renders remark rows with Edit and Delete actions', async () => {
-  mockCatalogs(() => [first]);
+it('disables Edit and Delete on read-only remarks and explains why', async () => {
+  mockCatalogs(() => [{ ...first, editable: false }]);
 
   await renderManageBuq();
 
   const row = await screen.findByRole('row', { name: /Alternative/ });
-  expect(within(row).getByRole('button', { name: 'manage-buq.edit' })).toBeEnabled();
-  expect(within(row).getByRole('button', { name: 'manage-buq.delete' })).toBeEnabled();
+  for (const name of ['manage-buq.edit', 'manage-buq.delete']) {
+    const action = within(row).getByRole('button', { name });
+    expect(action).toHaveAttribute('aria-disabled', 'true');
+    expect(action).toHaveAccessibleDescription('manage-buq.read-only-reason');
+  }
 });
 
 it('restores each tab’s linked page and sort and preserves both across tab switches', async () => {
