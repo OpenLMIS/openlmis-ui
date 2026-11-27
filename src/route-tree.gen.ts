@@ -32,6 +32,7 @@ import { Route as protectedProtectedAdministrationReasonsRouteImport } from './r
 import { Route as protectedProtectedAdministrationRejectionReasonCategoriesRouteImport } from './routes/(protected)/_protected.administration.rejection-reason-categories'
 import { Route as protectedProtectedAdministrationRejectionReasonsRouteImport } from './routes/(protected)/_protected.administration.rejection-reasons'
 import { Route as protectedProtectedAdministrationReportCategoriesRouteImport } from './routes/(protected)/_protected.administration.report-categories'
+import { Route as protectedProtectedAdministrationReportsRouteImport } from './routes/(protected)/_protected.administration.reports'
 import { Route as protectedProtectedAdministrationRequisitionGroupsRouteImport } from './routes/(protected)/_protected.administration.requisition-groups'
 import { Route as protectedProtectedAdministrationRequisitionTemplatesRouteImport } from './routes/(protected)/_protected.administration.requisition-templates'
 import { Route as protectedProtectedAdministrationRolesRouteImport } from './routes/(protected)/_protected.administration.roles'
@@ -236,6 +237,12 @@ const protectedProtectedAdministrationReportCategoriesRoute =
   protectedProtectedAdministrationReportCategoriesRouteImport.update({
     id: '/administration/report-categories',
     path: '/administration/report-categories',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationReportsRoute =
+  protectedProtectedAdministrationReportsRouteImport.update({
+    id: '/administration/reports',
+    path: '/administration/reports',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationRequisitionGroupsRoute =
@@ -712,6 +719,7 @@ export interface FileRoutesByFullPath {
   '/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
   '/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/administration/report-categories': typeof protectedProtectedAdministrationReportCategoriesRoute
+  '/administration/reports': typeof protectedProtectedAdministrationReportsRoute
   '/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -808,6 +816,7 @@ export interface FileRoutesByTo {
   '/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
   '/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/administration/report-categories': typeof protectedProtectedAdministrationReportCategoriesRoute
+  '/administration/reports': typeof protectedProtectedAdministrationReportsRoute
   '/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -907,6 +916,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/rejection-reason-categories': typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
   '/(protected)/_protected/administration/rejection-reasons': typeof protectedProtectedAdministrationRejectionReasonsRoute
   '/(protected)/_protected/administration/report-categories': typeof protectedProtectedAdministrationReportCategoriesRoute
+  '/(protected)/_protected/administration/reports': typeof protectedProtectedAdministrationReportsRoute
   '/(protected)/_protected/administration/requisition-groups': typeof protectedProtectedAdministrationRequisitionGroupsRoute
   '/(protected)/_protected/administration/requisition-templates': typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   '/(protected)/_protected/administration/roles': typeof protectedProtectedAdministrationRolesRoute
@@ -1007,6 +1017,7 @@ export interface FileRouteTypes {
     | '/administration/rejection-reason-categories'
     | '/administration/rejection-reasons'
     | '/administration/report-categories'
+    | '/administration/reports'
     | '/administration/requisition-groups'
     | '/administration/requisition-templates'
     | '/administration/roles'
@@ -1103,6 +1114,7 @@ export interface FileRouteTypes {
     | '/administration/rejection-reason-categories'
     | '/administration/rejection-reasons'
     | '/administration/report-categories'
+    | '/administration/reports'
     | '/administration/requisition-groups'
     | '/administration/requisition-templates'
     | '/administration/roles'
@@ -1201,6 +1213,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/rejection-reason-categories'
     | '/(protected)/_protected/administration/rejection-reasons'
     | '/(protected)/_protected/administration/report-categories'
+    | '/(protected)/_protected/administration/reports'
     | '/(protected)/_protected/administration/requisition-groups'
     | '/(protected)/_protected/administration/requisition-templates'
     | '/(protected)/_protected/administration/roles'
@@ -1446,6 +1459,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/report-categories'
       fullPath: '/administration/report-categories'
       preLoaderRoute: typeof protectedProtectedAdministrationReportCategoriesRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/reports': {
+      id: '/(protected)/_protected/administration/reports'
+      path: '/administration/reports'
+      fullPath: '/administration/reports'
+      preLoaderRoute: typeof protectedProtectedAdministrationReportsRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/requisition-groups': {
@@ -2053,6 +2073,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationRejectionReasonCategoriesRoute: typeof protectedProtectedAdministrationRejectionReasonCategoriesRoute
   protectedProtectedAdministrationRejectionReasonsRoute: typeof protectedProtectedAdministrationRejectionReasonsRoute
   protectedProtectedAdministrationReportCategoriesRoute: typeof protectedProtectedAdministrationReportCategoriesRoute
+  protectedProtectedAdministrationReportsRoute: typeof protectedProtectedAdministrationReportsRoute
   protectedProtectedAdministrationRequisitionGroupsRoute: typeof protectedProtectedAdministrationRequisitionGroupsRoute
   protectedProtectedAdministrationRequisitionTemplatesRoute: typeof protectedProtectedAdministrationRequisitionTemplatesRoute
   protectedProtectedAdministrationRolesRoute: typeof protectedProtectedAdministrationRolesRoute
@@ -2150,6 +2171,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationRejectionReasonsRoute,
   protectedProtectedAdministrationReportCategoriesRoute:
     protectedProtectedAdministrationReportCategoriesRoute,
+  protectedProtectedAdministrationReportsRoute:
+    protectedProtectedAdministrationReportsRoute,
   protectedProtectedAdministrationRequisitionGroupsRoute:
     protectedProtectedAdministrationRequisitionGroupsRoute,
   protectedProtectedAdministrationRequisitionTemplatesRoute:
