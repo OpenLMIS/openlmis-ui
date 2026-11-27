@@ -62,6 +62,7 @@ export function SupersetSignIn({
   username,
   onRetry,
   restoreFocus,
+  dismissToRetry = false,
 }: {
   url: string;
   supersetUrl: string;
@@ -69,6 +70,7 @@ export function SupersetSignIn({
   username: string;
   onRetry: () => void;
   restoreFocus: boolean;
+  dismissToRetry?: boolean;
 }) {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
@@ -108,7 +110,12 @@ export function SupersetSignIn({
     return <DashboardFrame url={url} title={title} onRetry={onRetry} restoreFocus={restoreFocus} />;
   if (status.kind === 'failed')
     return (
-      <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={restoreFocus} />
+      <DashboardFailureState
+        failure={status.failure}
+        onRetry={onRetry}
+        focus={restoreFocus}
+        hideBackLink={dismissToRetry}
+      />
     );
   return (
     <>
@@ -117,7 +124,11 @@ export function SupersetSignIn({
         closeButton={false}
         open={status.kind === 'sign-in'}
         onOpenChange={(open) => {
-          if (!open) void navigate({ to: '/reports' });
+          if (open) return;
+          if (dismissToRetry) {
+            opening.current?.abort();
+            setStatus({ kind: 'failed', failure: { kind: 'sign-in-required' } });
+          } else void navigate({ to: '/reports' });
         }}
       >
         {status.kind === 'sign-in' && (

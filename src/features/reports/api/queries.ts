@@ -6,12 +6,21 @@ import {
   fetchTemplateReports,
 } from '@/features/reports/api/api';
 import type { ReportLookup } from '@/features/reports/lib/report-lookups';
-import { queryKeys } from '@/lib/key-factory';
+import { shouldRetry } from '@/integrations/tanstack-query';
+import { homeReportQueryKey, queryKeys } from '@/lib/key-factory';
+import { isOnline } from '@/lib/online';
 
 export const availableDashboardsOptions = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.dashboardReports.list({ userId, showOnHomePage: false }),
     queryFn: ({ signal }) => fetchAvailableDashboards(signal),
+  });
+
+export const homeReportOptions = (userId: string) =>
+  queryOptions({
+    queryKey: homeReportQueryKey(userId),
+    queryFn: async ({ signal }) => (await fetchAvailableDashboards(signal, true))[0] ?? null,
+    retry: (failureCount, error) => isOnline() && shouldRetry(failureCount, error),
   });
 
 export const templateReportsOptions = (userId: string, module: string) =>

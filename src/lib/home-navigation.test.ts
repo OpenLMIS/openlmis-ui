@@ -10,7 +10,7 @@ import { systemNotificationsOptions } from '@/features/system-notifications/api/
 import { cancelHomeOnNavigation } from '@/lib/home-navigation';
 import { queryKeys } from '@/lib/key-factory';
 
-it('cancels Home requests before the destination loader settles and keeps shell notifications', async () => {
+it('cancels Home requests before the destination loader settles and keeps unrelated requests', async () => {
   const root = createRootRoute();
   const pending = Promise.withResolvers<void>();
   const home = createRoute({ getParentRoute: () => root, path: '/home' });
@@ -42,11 +42,29 @@ it('cancels Home requests before the destination loader settles and keeps shell 
       return pending.promise.then(() => []);
     },
   });
+  let homeReportSignal!: AbortSignal;
+  void client.prefetchQuery({
+    queryKey: queryKeys.dashboardReports.list({ userId: 'ada', showOnHomePage: true }),
+    queryFn: (context) => {
+      homeReportSignal = context.signal;
+      return pending.promise.then(() => null);
+    },
+  });
+  let catalogSignal!: AbortSignal;
+  const catalog = client.prefetchQuery({
+    queryKey: queryKeys.dashboardReports.list({ userId: 'ada', showOnHomePage: false }),
+    queryFn: (context) => {
+      catalogSignal = context.signal;
+      return pending.promise.then(() => []);
+    },
+  });
   const navigating = router.navigate({ to: '/page' as never });
   expect(signal.aborted).toBe(true);
   expect(notificationSignal.aborted).toBe(false);
+  expect(homeReportSignal.aborted).toBe(true);
+  expect(catalogSignal.aborted).toBe(false);
   pending.resolve();
-  await Promise.all([navigating, notifications]);
+  await Promise.all([navigating, notifications, catalog]);
   stop();
   client.clear();
 });

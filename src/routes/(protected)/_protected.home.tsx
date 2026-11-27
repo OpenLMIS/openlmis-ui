@@ -32,8 +32,10 @@ import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/d
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
 import type { DashboardAccess } from '@/features/home/lib/types';
 import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { HomeReport } from '@/features/reports/components/home-report';
 import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
-import { queryKeys, userRecordKey } from '@/lib/key-factory';
+import { cancelHomeQueries } from '@/lib/home-navigation';
+import { homeReportQueryKey, queryKeys, userRecordKey } from '@/lib/key-factory';
 import { isOnline, useOnline } from '@/lib/online';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
@@ -66,7 +68,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     }
   },
   onLeave: ({ context: { queryClient } }) => {
-    void queryClient.cancelQueries({ queryKey: queryKeys.home.all });
+    cancelHomeQueries(queryClient);
   },
   pendingComponent: HomePending,
   component: HomePage,
@@ -74,11 +76,12 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
 
 function HomePage() {
   const userId = useLoginData((state) => state.referenceDataUserId);
+  const username = useLoginData((state) => state.username);
   // Signing out clears the cache before leaving, so the page must not load rights for no one.
-  return userId ? <HomeContent userId={userId} /> : null;
+  return userId ? <HomeContent userId={userId} username={username ?? ''} /> : null;
 }
 
-function HomeContent({ userId }: { userId: string }) {
+function HomeContent({ userId, username }: { userId: string; username: string }) {
   const online = useOnline();
   const { t } = useTranslation();
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
@@ -119,9 +122,12 @@ function HomeContent({ userId }: { userId: string }) {
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <DashboardRevision value={revision}>
-          <HomeDashboard access={access} />
-        </DashboardRevision>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6">
+          <DashboardRevision value={revision}>
+            <HomeDashboard access={access} />
+          </DashboardRevision>
+          <HomeReport key={revision} userId={userId} username={username} />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
@@ -133,16 +139,19 @@ function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () =>
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fetchingDashboard = useIsFetching({ queryKey: queryKeys.home.all });
+  const fetchingHomeReport = useIsFetching({ queryKey: homeReportQueryKey() });
   const fetchingUser = useIsFetching({ queryKey: userRecordKey(userId), exact: true });
   const notifications = { queryKey: systemNotificationsOptions().queryKey, exact: true };
   const fetchingNotifications = useIsFetching(notifications);
-  const isFetching = fetchingDashboard + fetchingUser + fetchingNotifications > 0;
+  const isFetching =
+    fetchingDashboard + fetchingHomeReport + fetchingUser + fetchingNotifications > 0;
 
   const refresh = () => {
     if (!isOnline()) return;
     void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
     void queryClient.refetchQueries({ queryKey: userRecordKey(userId), exact: true });
     void queryClient.resetQueries({ queryKey: queryKeys.home.all });
+    void queryClient.invalidateQueries({ queryKey: homeReportQueryKey(), refetchType: 'none' });
     void queryClient.invalidateQueries(notifications);
     onRefresh();
   };

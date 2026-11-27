@@ -31,9 +31,9 @@ async function fetchCatalog<T>(path: string, signal?: AbortSignal, params = {}) 
   return data.content;
 }
 
-export const fetchAvailableDashboards = (signal?: AbortSignal) =>
+export const fetchAvailableDashboards = (signal?: AbortSignal, showOnHomePage = false) =>
   fetchCatalog<DashboardReport>('/reports/dashboardReports/availableReports', signal, {
-    showOnHomePage: false,
+    showOnHomePage,
   });
 
 /** Drops the compiled template the server sends with every report, so it never reaches the cache. */

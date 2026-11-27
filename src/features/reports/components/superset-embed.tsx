@@ -53,6 +53,7 @@ export function SupersetEmbed({
   userId,
   onRetry,
   restoreFocus,
+  hideBackLink = false,
 }: {
   uuid: string;
   supersetUrl: string;
@@ -60,6 +61,7 @@ export function SupersetEmbed({
   userId: string;
   onRetry: () => void;
   restoreFocus: boolean;
+  hideBackLink?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'connecting' });
@@ -188,7 +190,12 @@ export function SupersetEmbed({
     return <ErrorFallback error={status.error} info={undefined} reset={onRetry} />;
   if (status.kind === 'failed')
     return (
-      <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={restoreFocus} />
+      <DashboardFailureState
+        failure={status.failure}
+        onRetry={onRetry}
+        focus={restoreFocus}
+        hideBackLink={hideBackLink}
+      />
     );
   return (
     <DashboardArea
