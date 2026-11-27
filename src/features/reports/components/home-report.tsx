@@ -92,12 +92,12 @@ export function HomeReport({
             errorComponent={({ error, reset }) => (
               <HomeReportError
                 onRetry={() => {
-                  if (isChunkLoadError(error)) {
-                    retryChunkLoad(canReloadIntoWorker());
-                    return;
-                  }
-                  heading.current?.focus();
-                  reset();
+                  const remount = () => {
+                    heading.current?.focus();
+                    reset();
+                  };
+                  if (isChunkLoadError(error)) retryChunkLoad(canReloadIntoWorker(), remount);
+                  else remount();
                 }}
               />
             )}
