@@ -52,15 +52,16 @@ vi.mock('@/features/onboarding/lib/tours', () => ({
   tourForRoute: () => state.tour,
 }));
 
-/** Two menu sections where opening one closes the other, as the sidebar does. */
 function Sections() {
-  const [open, setOpen] = useState<string | null>('nav.orders');
+  const [open, setOpen] = useState<string[]>(['nav.orders']);
   return (['nav.orders', 'nav.requisitions'] as const).map((key) => (
     <Collapsible
       data-tour={sectionAnchor(key)}
       key={key}
-      onOpenChange={(next) => setOpen(next ? key : null)}
-      open={open === key}
+      onOpenChange={(next) =>
+        setOpen((sections) => (next ? [...sections, key] : sections.filter((id) => id !== key)))
+      }
+      open={open.includes(key)}
     >
       <CollapsibleTrigger>{key}</CollapsibleTrigger>
       <CollapsibleContent>{key} screens</CollapsibleContent>
@@ -135,7 +136,7 @@ describe('TourLauncher', () => {
     },
   );
 
-  it('opens a menu section for its step, then gives the user back the section they had open', async () => {
+  it('keeps already open sections expanded while guiding another section', async () => {
     const user = userEvent.setup();
     state.tour = SECTION_TOUR;
     renderLauncher();
@@ -148,13 +149,13 @@ describe('TourLauncher', () => {
 
     expect(await screen.findByRole('alertdialog', { name: 'nav.requisitions' })).toBeVisible();
     expect(requisitions).toHaveAttribute('aria-expanded', 'true');
-    expect(orders).toHaveAttribute('aria-expanded', 'false');
+    expect(orders).toHaveAttribute('aria-expanded', 'true');
     await user.click(screen.getByRole('button', { name: 'onboarding.finish' }));
     await waitFor(() => expect(orders).toHaveAttribute('aria-expanded', 'true'));
     expect(requisitions).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('gives the user back their section when they close the tour on that section', async () => {
+  it('closes the guided section when the user stops the tour', async () => {
     const user = userEvent.setup();
     state.tour = SECTION_TOUR;
     renderLauncher();
@@ -162,10 +163,15 @@ describe('TourLauncher', () => {
     await user.click(await screen.findByRole('button', { name: 'onboarding.show-guide' }));
     await user.click(await screen.findByRole('button', { name: 'onboarding.next' }));
     await screen.findByRole('alertdialog', { name: 'nav.orders' });
+    await user.click(screen.getByRole('button', { name: 'onboarding.next' }));
+    await screen.findByRole('alertdialog', { name: 'nav.requisitions' });
+    const requisitions = screen.getByRole('button', { name: 'nav.requisitions' });
+    expect(requisitions).toHaveAttribute('aria-expanded', 'true');
 
     await user.click(screen.getByRole('button', { name: 'onboarding.close' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(orders).toHaveAttribute('aria-expanded', 'true');
+    expect(requisitions).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('still plays every step in browsers without Element.checkVisibility', async () => {

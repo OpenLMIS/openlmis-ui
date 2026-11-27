@@ -100,9 +100,13 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
     scrollOffset: tokenPixels('height', '--app-header-height') + SPOTLIGHT_PADDING * 2,
     scrollDuration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300,
   }));
-  // The menu shows one section at a time, so remember the user's to give it back at the end.
-  const [userSection] = useState(
-    () => steps.find((step) => step.expand && isSectionOpen(step.anchor))?.anchor,
+  const [openSections] = useState(
+    () =>
+      new Set(
+        steps
+          .filter((step) => step.expand && isSectionOpen(step.anchor))
+          .map((step) => step.anchor),
+      ),
   );
   const [startedAt] = useState(() => window.location.href);
   const joyrideSteps = useMemo<Step[]>(
@@ -121,10 +125,12 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
             setSectionOpen(step.anchor, true);
             await nextFrame();
           },
-          after: () => setSectionOpen(step.anchor, false),
+          after: () => {
+            if (!openSections.has(step.anchor)) setSectionOpen(step.anchor, false);
+          },
         }),
       })),
-    [steps, t, direction],
+    [steps, t, direction, openSections],
   );
 
   // Leaving the page hands the menu to the next page, which opens its own section.
@@ -132,11 +138,10 @@ function TourPlayer({ steps, onEnd }: { steps: readonly TourStep[]; onEnd: () =>
     () => () => {
       if (window.location.href !== startedAt) return;
       for (const step of steps) {
-        if (step.expand && step.anchor !== userSection) setSectionOpen(step.anchor, false);
+        if (step.expand && !openSections.has(step.anchor)) setSectionOpen(step.anchor, false);
       }
-      if (userSection) setSectionOpen(userSection, true);
     },
-    [steps, userSection, startedAt],
+    [steps, openSections, startedAt],
   );
   const { controls, Tour } = useJoyride({
     steps: joyrideSteps,
