@@ -18,6 +18,7 @@ import { RequisitionHistoryDialog } from '@/features/requisitions/components/req
 import { StatusMessage } from '@/features/requisitions/components/status-message';
 import type { RequisitionEditor } from '@/features/requisitions/hooks/use-requisition-form';
 import type { RequisitionRecord } from '@/features/requisitions/lib/types';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 
 export function RequisitionComments({
   record,
@@ -74,7 +75,12 @@ export function RequisitionComments({
   const hasRejections = record.status === 'REJECTED' && !!rejected?.rejectionDtos?.length;
   if (!commenting && !latest && !hasRejections && !historyMessages.length) return null;
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3" ref={sectionRef}>
+    <section
+      aria-labelledby={headingId}
+      className="flex flex-col gap-3"
+      data-tour={TOUR_ANCHORS.requisitionComments}
+      ref={sectionRef}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="font-semibold text-sm" id={headingId}>
           {t('requisitions.requisition.comments')}

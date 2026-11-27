@@ -1,5 +1,5 @@
 import { UserRoundIcon } from 'lucide-react';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '@/components/app-shell/command-palette';
 import { CustomTrigger } from '@/components/app-shell/custom-trigger';
@@ -8,7 +8,7 @@ import { OfflineDot, StatusAnnouncer } from '@/components/app-shell/sidebar-noti
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SystemNotifications } from '@/features/system-notifications/components/system-notifications';
 
-export const AppHeader = memo(function AppHeader() {
+export const AppHeader = memo(function AppHeader({ actions }: { actions?: ReactNode }) {
   const { t } = useTranslation();
 
   return (
@@ -20,6 +20,7 @@ export const AppHeader = memo(function AppHeader() {
       <StatusAnnouncer />
       <CommandPalette />
       <div className="ms-auto flex items-center gap-1.5">
+        {actions}
         <SystemNotifications />
         <NavUser
           trigger={

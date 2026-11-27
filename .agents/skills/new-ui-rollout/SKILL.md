@@ -111,8 +111,8 @@ docker inspect <nginx container> --format '{{index .Config.Labels "com.docker.co
 - **Other settings** the UI reads, all optional: `DEFAULT_ISSUE_REASON_ID`,
   `DEFAULT_RECEIVE_REASON_ID`, `KIT_UNPACK_REASON_ID`, `UNPACKED_FROM_KIT_REASON_ID`,
   `QUANTITY_UNIT_OPTION`, `DEFAULT_QUANTITY_UNIT`, `CATCHMENT_POPULATION_CALC_AUTO`,
-  `GS1_SCANNING`, `BATCH_APPROVE_SCREEN`, `SHOW_REQUISITION_LESS_ORDER`. `LOCALE` should be one the
-  UI ships (`en`, `pt`, `ar`, `es`, `fr`).
+  `GS1_SCANNING`, `BATCH_APPROVE_SCREEN`, `ONBOARDING`, `SHOW_REQUISITION_LESS_ORDER`. `LOCALE`
+  should be one the UI ships (`en`, `pt`, `ar`, `es`, `fr`).
 
 ## How it works
 

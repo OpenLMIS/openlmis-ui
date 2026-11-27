@@ -121,7 +121,9 @@ Optional features are turned on or off in two places:
 - **The container's environment**, with the same variables as the legacy UI:
   `BATCH_APPROVE_SCREEN`, `GS1_SCANNING` and `SHOW_REQUISITION_LESS_ORDER` (`true` or `false`),
   `QUANTITY_UNIT_OPTION` (`PACKS`, `DOSES` or `BOTH`) and `DEFAULT_QUANTITY_UNIT` (`PACKS` or
-  `DOSES`). The entrypoint writes them into `config.json`; an unset variable means the default.
+  `DOSES`). `ONBOARDING` (`true` or `false`, on by default) is new to this UI and shows the Show
+  Guide button on screens that have a guided tour. The entrypoint writes them into `config.json`;
+  an unset variable means the default.
 - **`SYSTEM_SETTINGS`** (`true` or `false`, off by default) offers the Settings page. Turn it on only
   where the reference data service stores the new UI's settings; the released versions do not. It
   is read from the environment alone, so it never appears among the flags below.
