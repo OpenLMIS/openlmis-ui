@@ -27,9 +27,7 @@ it('disables Edit and Delete on read-only remarks and explains why', async () =>
   await renderManageBuq();
 
   const row = await screen.findByRole('row', { name: /Alternative/ });
-  const marker = within(row).getByText('manage-buq.read-only-label');
-  expect(marker).toBeVisible();
-  expect(marker).toHaveAccessibleDescription('manage-buq.read-only-description');
+  expect(within(row).getByText('manage-buq.read-only-label')).toBeVisible();
   for (const name of ['manage-buq.edit', 'manage-buq.delete']) {
     const action = within(row).getByRole('button', { name });
     expect(action).toHaveAttribute('aria-disabled', 'true');

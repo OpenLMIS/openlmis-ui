@@ -9,8 +9,9 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useDeferredValue, useEffect, useId, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import {
   DataTable,
   DataTableColumnHeader,
@@ -36,6 +37,8 @@ import {
 } from '@/features/buq-admin/lib/types';
 import type { BuqCatalogRecord } from '@/features/reference-data/lib/types';
 import { usePagedTableSearch } from '@/hooks/use-page-start';
+import { isRefused } from '@/lib/http';
+import { reportCaughtError } from '@/lib/report-error';
 import {
   pageLocally,
   type SearchChange,
@@ -71,7 +74,7 @@ function createColumns(
         record.editable === false ? (
           <ReadOnlyCatalogName name={record.name} />
         ) : (
-          <CellText title={record.name}>{record.name}</CellText>
+          <CellText overflow="wrap">{record.name}</CellText>
         ),
       meta: { label: name },
     }),
@@ -80,11 +83,7 @@ function createColumns(
       header: () => <DataTableHeaderLabel>{description}</DataTableHeaderLabel>,
       cell: ({ getValue }) => {
         const text = getValue();
-        return text ? (
-          <span className="wrap-anywhere" dir="auto">
-            {text}
-          </span>
-        ) : null;
+        return text ? <CellText overflow="wrap">{text}</CellText> : null;
       },
       meta: { label: description },
     }),
@@ -124,19 +123,48 @@ function createColumns(
   ]);
 }
 
+function RefreshError({
+  error,
+  pending,
+  retry,
+}: {
+  error: unknown;
+  pending: boolean;
+  retry: () => void;
+}) {
+  const { t } = useTranslation();
+  const offline = useOfflineFailure(error, retry);
+  useEffect(() => reportCaughtError(error, {}), [error]);
+  return (
+    <Alert actionLayout="inline" variant="destructive">
+      <TriangleAlertIcon />
+      <AlertTitle>{t(offline ? 'offline.notice-title' : 'manage-buq.error-title')}</AlertTitle>
+      <AlertDescription>
+        {offline
+          ? t('offline.notice-description')
+          : isRefused(error)
+            ? t('manage-buq.form.no-access')
+            : t('manage-buq.error-description')}
+      </AlertDescription>
+      <AlertAction>
+        <Button disabled={pending} onClick={retry} size="sm" variant="destructive">
+          {pending && <Spinner data-icon="inline-start" />}
+          {t('error.try-again')}
+        </Button>
+      </AlertAction>
+    </Alert>
+  );
+}
+
 function ReadOnlyCatalogName({ name }: { name: string }) {
   const { t } = useTranslation();
-  const descriptionId = useId();
   return (
-    <span className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+    <span className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
       <bdi className="min-w-0 wrap-anywhere">{name}</bdi>
-      <Badge aria-describedby={descriptionId} role="group" variant="secondary" wrap="normal">
+      <Badge variant="secondary" wrap="normal">
         <LockIcon data-icon="inline-start" />
         {t('manage-buq.read-only-label')}
       </Badge>
-      <span hidden id={descriptionId}>
-        {t('manage-buq.read-only-description')}
-      </span>
     </span>
   );
 }
@@ -207,6 +235,7 @@ export function BuqCatalogTable({
   const { tab, cards, onSearchChange } = props;
   const {
     data: records,
+    error,
     isRefetchError,
     isFetching,
     refetch,
@@ -258,22 +287,7 @@ export function BuqCatalogTable({
   return (
     <>
       {isRefetchError && (
-        <Alert actionLayout="inline" variant="destructive">
-          <TriangleAlertIcon />
-          <AlertTitle>{t('manage-buq.error-title')}</AlertTitle>
-          <AlertDescription>{t('manage-buq.error-description')}</AlertDescription>
-          <AlertAction>
-            <Button
-              disabled={isFetching}
-              onClick={() => void refetch()}
-              size="sm"
-              variant="destructive"
-            >
-              {isFetching && <Spinner data-icon="inline-start" />}
-              {t('error.try-again')}
-            </Button>
-          </AlertAction>
-        </Alert>
+        <RefreshError error={error} pending={isFetching} retry={() => void refetch()} />
       )}
       {cards ? (
         <TableCards
