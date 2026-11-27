@@ -53,7 +53,7 @@ export function SupersetEmbed({
   userId,
   onRetry,
   restoreFocus,
-  hideBackLink = false,
+  placement,
 }: {
   uuid: string;
   supersetUrl: string;
@@ -61,7 +61,7 @@ export function SupersetEmbed({
   userId: string;
   onRetry: () => void;
   restoreFocus: boolean;
-  hideBackLink?: boolean;
+  placement: 'catalog' | 'home';
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'connecting' });
@@ -142,7 +142,7 @@ export function SupersetEmbed({
         if (disposed) return;
         if (error instanceof Error && isChunkLoadError(error)) {
           dispose();
-          if (isOnline())
+          if (placement === 'catalog' && isOnline())
             reportCaughtError(new Error('Dashboard SDK chunk could not be loaded'), {
               componentStack: 'SupersetEmbed',
             });
@@ -184,17 +184,19 @@ export function SupersetEmbed({
       );
     })();
     return dispose;
-  }, [uuid, supersetUrl, title, userId]);
+  }, [uuid, supersetUrl, title, userId, placement]);
 
-  if (status.kind === 'chunk-failed')
+  if (status.kind === 'chunk-failed') {
+    if (placement === 'home') throw status.error;
     return <ErrorFallback error={status.error} info={undefined} reset={onRetry} />;
+  }
   if (status.kind === 'failed')
     return (
       <DashboardFailureState
         failure={status.failure}
         onRetry={onRetry}
         focus={restoreFocus}
-        hideBackLink={hideBackLink}
+        hideBackLink={placement === 'home'}
       />
     );
   return (

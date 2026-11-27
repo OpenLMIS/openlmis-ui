@@ -25,8 +25,7 @@ export type DashboardFailureKind =
   | 'not-registered'
   | 'not-set-up'
   | 'unavailable'
-  | 'did-not-load'
-  | 'sign-in-required';
+  | 'did-not-load';
 
 export type DashboardFailure =
   | { kind: DashboardFailureKind; error?: unknown }
@@ -60,7 +59,6 @@ const FAILURE_TEXT = {
     'reports.dashboard.did-not-load-title',
     'reports.dashboard.did-not-load-description',
   ],
-  'sign-in-required': ['reports.dashboard.sign-in-title', 'reports.dashboard.sign-in-description'],
   'account-mismatch': [
     'reports.dashboard.account-mismatch-title',
     'reports.dashboard.account-mismatch',

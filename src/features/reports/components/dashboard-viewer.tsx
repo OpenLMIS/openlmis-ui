@@ -66,7 +66,7 @@ export function DashboardViewer({
           url={mode.url}
           supersetUrl={mode.supersetUrl}
           username={username}
-          dismissToRetry={home}
+          placement={placement}
           {...openingProps}
         />
       ) : mode.kind === 'embedded' ? (
@@ -75,7 +75,7 @@ export function DashboardViewer({
           uuid={mode.uuid}
           supersetUrl={mode.supersetUrl}
           userId={userId}
-          hideBackLink={home}
+          placement={placement}
           {...openingProps}
         />
       ) : (
