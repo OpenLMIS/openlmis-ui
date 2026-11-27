@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, queryOptions } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { DeleteRecordDialog } from '@/components/display/delete-record-dialog';
@@ -12,19 +12,10 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function renderDelete({
-  blocked,
-  error,
-}: {
-  blocked?: () => { title: string; description: string };
-  error?: Error;
-}) {
+function renderDelete(blocked: () => { title: string; description: string }) {
   const client = new QueryClient();
   const onClose = vi.fn();
-  const removeRecord = vi.fn(async () => {
-    if (error) throw error;
-  });
-  const refresh = vi.fn(async () => {});
+  const removeRecord = vi.fn(async () => {});
   useLoginData.getState().setLoginData({
     referenceDataUserId: 'admin',
     username: 'ada',
@@ -43,8 +34,7 @@ function renderDelete({
           queryOptions({ queryKey: ['record', id, opening], queryFn: async () => record })
         }
         removeRecord={removeRecord}
-        refresh={refresh}
-        refreshOnError={(failure) => failure === error}
+        refresh={async () => {}}
         getCopy={() => ({
           action: 'Delete record',
           title: 'Delete record?',
@@ -62,26 +52,19 @@ function renderDelete({
       />
     </QueryClientProvider>,
   );
-  return { onClose, refresh, removeRecord };
+  return { onClose, removeRecord };
 }
 
 it('offers only Close for a blocked record', async () => {
   const user = userEvent.setup();
-  const { onClose, removeRecord } = renderDelete({
-    blocked: () => ({ title: 'Read-only record', description: 'This record is protected.' }),
-  });
+  const { onClose, removeRecord } = renderDelete(() => ({
+    title: 'Read-only record',
+    description: 'This record is protected.',
+  }));
   expect(screen.getByRole('alertdialog', { name: 'Read-only record' })).toBeVisible();
   expect(screen.getByText('This record is protected.')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Delete record' })).toBeNull();
   await user.click(screen.getByRole('button', { name: 'dialog.close' }));
   expect(onClose).toHaveBeenCalledOnce();
   expect(removeRecord).not.toHaveBeenCalled();
-});
-
-it('refreshes and closes after a failure selected by the caller', async () => {
-  const user = userEvent.setup();
-  const { onClose, refresh } = renderDelete({ error: new Error('Delete failed') });
-  await user.click(screen.getByRole('button', { name: 'Delete record' }));
-  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-  expect(refresh).toHaveBeenCalledOnce();
 });

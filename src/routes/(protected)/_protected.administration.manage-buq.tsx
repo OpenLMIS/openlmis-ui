@@ -114,9 +114,7 @@ function CatalogPanel({ tab }: { tab: BuqCatalogTab }) {
   const addButton = useRef<HTMLButtonElement>(null);
   const formOpener = useRef<HTMLButtonElement>(null);
   const deleteOpener = useRef<HTMLButtonElement>(null);
-  const [deleteHint, setDeleteHint] = useDeleteRowHint<BuqCatalogRecord & { tab: BuqCatalogTab }>(
-    deleting,
-  );
+  const [deleteHint, setDeleteHint] = useDeleteRowHint<BuqCatalogRecord>(deleting);
   const [formMounted, setFormMounted] = useState(target !== undefined);
   const [deleteMounted, setDeleteMounted] = useState(deleting !== undefined);
   if (target !== undefined && !formMounted) setFormMounted(true);
@@ -139,10 +137,10 @@ function CatalogPanel({ tab }: { tab: BuqCatalogTab }) {
   const remove = useCallback<BuqCatalogRowAction>(
     (row, opener) => {
       deleteOpener.current = opener;
-      setDeleteHint({ ...row, tab });
+      setDeleteHint(row);
       void openDialog({ delete: row.id });
     },
-    [openDialog, setDeleteHint, tab],
+    [openDialog, setDeleteHint],
   );
 
   return (
@@ -195,7 +193,7 @@ function CatalogPanel({ tab }: { tab: BuqCatalogTab }) {
         <Suspense fallback={null}>
           <DeleteCatalogDialog
             addButton={addButton}
-            hint={deleteHint?.tab === tab ? deleteHint : undefined}
+            hint={deleteHint}
             onClose={close}
             opener={deleteOpener}
             tab={tab}

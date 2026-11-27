@@ -114,24 +114,35 @@ it.each([false, true])('checks a source immediately before PUT (missing: %s)', a
   }
 });
 
-it('keeps the Source dialog independent of a pending Remark save and its late completion', async () => {
+it('keeps other dialogs independent of a pending Add Remark and its late completion', async () => {
   mockCatalogs((url) => (url === remarksUrl ? [remark] : [source]));
   const pending = Promise.withResolvers<{ data: typeof remark }>();
   const post = vi.spyOn(client, 'post').mockReturnValue(pending.promise);
   const user = userEvent.setup();
-  const { router, queryClient } = await renderManageBuq('?edit=new');
+  const { router, queryClient } = await renderManageBuq();
+  await user.click(await screen.findByRole('button', { name: 'manage-buq.add-remark' }));
 
   const remarkDialog = within(await screen.findByRole('dialog'));
   await user.type(remarkDialog.getByRole('textbox', { name: nameLabel }), 'Remark draft');
   await user.click(remarkDialog.getByRole('button', { name: 'manage-buq.form.add' }));
   await waitFor(() => expect(post).toHaveBeenCalledOnce());
+  await waitFor(() => expect(remarkDialog.queryByRole('button', { name: 'Close' })).toBeNull());
+
+  await act(async () => router.history.back());
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await user.click(screen.getByRole('button', { name: 'manage-buq.edit' }));
+  const editDialog = within(
+    await screen.findByRole('dialog', { name: 'manage-buq.form.edit-remark' }),
+  );
+  expect(await editDialog.findByRole('textbox', { name: nameLabel })).toBeEnabled();
+  expect(editDialog.getByRole('button', { name: 'manage-buq.form.save' })).toBeEnabled();
+  expect(editDialog.getByRole('button', { name: 'Close' })).toBeVisible();
+  expect(queryClient.isMutating()).toBe(1);
 
   await act(async () =>
     router.navigate({ to: '/administration/manage-buq', search: { tab: 'sources', edit: 'new' } }),
   );
-  const sourceDialog = within(
-    await screen.findByRole('dialog', { name: 'manage-buq.form.add-source' }),
-  );
+  const sourceDialog = within(await screen.findByRole('dialog', { name: 'manage-buq.add-source' }));
   const name = sourceDialog.getByRole('textbox', { name: nameLabel });
   expect(name).toHaveValue('');
   expect(name).toBeEnabled();

@@ -46,8 +46,9 @@ import { isNotFound, isRefused } from '@/lib/http';
 import { queryKeys } from '@/lib/key-factory';
 import { reportApiError } from '@/lib/report-error';
 
-const saveKey = (tab: BuqCatalogTab, target: string) =>
-  [...queryKeys.buq.all, 'save', BUQ_CATALOGS[tab].kind, target] as const;
+const savesKey = (tab: BuqCatalogTab) =>
+  [...queryKeys.buq.all, 'save', BUQ_CATALOGS[tab].kind] as const;
+const saveKey = (tab: BuqCatalogTab, target: string) => [...savesKey(tab), target] as const;
 
 export function CatalogFormDialog({
   tab,
@@ -65,10 +66,10 @@ export function CatalogFormDialog({
   const { shown, close, dialogProps } = useDialogTarget(target, onClose);
   const opening = useOpening(target);
   const pendingSaves = useMutationState({
-    filters: { mutationKey: saveKey(tab, shown ?? 'new'), status: 'pending', exact: true },
-    select: () => true,
+    filters: { mutationKey: savesKey(tab), status: 'pending' },
+    select: (mutation) => mutation.options.mutationKey?.at(-1),
   });
-  const isSaving = pendingSaves.length > 0;
+  const isSaving = pendingSaves.includes(shown ?? 'new');
   const saved = useRef(false);
 
   return (
@@ -118,7 +119,7 @@ function CatalogDialogContent({
   const { t } = useTranslation();
   const isNew = target === 'new';
   const kind = BUQ_CATALOGS[tab].kind;
-  const title = t(`manage-buq.form.${isNew ? 'add' : 'edit'}-${kind}`);
+  const title = t(isNew ? `manage-buq.add-${kind}` : `manage-buq.form.edit-${kind}`);
   const submit = t(isNew ? 'manage-buq.form.add' : 'manage-buq.form.save');
   const formProps = { tab, isSaving, onDone, submit, title };
   const [savingAtOpen] = useState(isSaving);
@@ -224,9 +225,8 @@ function CatalogForm({
       if (record && isNotFound(error)) {
         await refreshBuqCatalog(queryClient, tab, save.isCurrent);
         if (!save.isCurrent()) return;
-        toast.error(t('manage-buq.not-found-title'), {
-          description: t(BUQ_CATALOG_NOT_FOUND[tab]),
-        });
+        const description = apiErrorText(error, BUQ_CATALOG_NOT_FOUND[tab], t, { write: true });
+        if (description) toast.error(t('manage-buq.not-found-title'), { description });
       }
     },
   });

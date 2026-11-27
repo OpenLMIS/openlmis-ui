@@ -1,8 +1,15 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createColumnHelper, useTable } from '@tanstack/react-table';
 import type { TFunction } from 'i18next';
-import { CoinsIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo } from 'react';
+import {
+  CoinsIcon,
+  LockIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from 'lucide-react';
+import { useDeferredValue, useEffect, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DataTable,
@@ -16,7 +23,10 @@ import {
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
 import { RowActions } from '@/components/display/card-actions';
 import { CellText, TableCards, TableCardsSkeleton } from '@/components/display/table-cards';
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { buqCatalogOptions } from '@/features/buq-admin/api/queries';
 import { DEFAULT_BUQ_CATALOG_SORT } from '@/features/buq-admin/lib/search';
 import {
@@ -57,7 +67,12 @@ function createColumns(
   return columnHelper.columns([
     columnHelper.accessor('name', {
       header: ({ column }) => <DataTableColumnHeader column={column} title={name} />,
-      cell: ({ getValue }) => <CellText title={getValue()}>{getValue()}</CellText>,
+      cell: ({ row: { original: record } }) =>
+        record.editable === false ? (
+          <ReadOnlyCatalogName name={record.name} />
+        ) : (
+          <CellText title={record.name}>{record.name}</CellText>
+        ),
       meta: { label: name },
     }),
     columnHelper.accessor('description', {
@@ -66,9 +81,9 @@ function createColumns(
       cell: ({ getValue }) => {
         const text = getValue();
         return text ? (
-          <CellText overflow="clamp" title={text}>
+          <span className="wrap-anywhere" dir="auto">
             {text}
-          </CellText>
+          </span>
         ) : null;
       },
       meta: { label: description },
@@ -79,7 +94,7 @@ function createColumns(
       meta: { className: 'w-24', skeleton: 'control' },
       cell: ({ row: { original: record } }) => {
         const disabled = record.editable === false;
-        const reason = disabled ? t('manage-buq.read-only-reason') : undefined;
+        const reason = disabled ? t('manage-buq.read-only-description') : undefined;
         return (
           <RowActions
             label={t('manage-buq.actions-for', { name: record.name })}
@@ -107,6 +122,23 @@ function createColumns(
       },
     }),
   ]);
+}
+
+function ReadOnlyCatalogName({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const descriptionId = useId();
+  return (
+    <span className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <bdi className="min-w-0 wrap-anywhere">{name}</bdi>
+      <Badge aria-describedby={descriptionId} role="group" variant="secondary" wrap="normal">
+        <LockIcon data-icon="inline-start" />
+        {t('manage-buq.read-only-label')}
+      </Badge>
+      <span hidden id={descriptionId}>
+        {t('manage-buq.read-only-description')}
+      </span>
+    </span>
+  );
 }
 
 function useBuqCatalogTable({
@@ -173,7 +205,12 @@ export function BuqCatalogTable({
   }) {
   const { t, i18n } = useTranslation();
   const { tab, cards, onSearchChange } = props;
-  const { data: records } = useSuspenseQuery(buqCatalogOptions(tab));
+  const {
+    data: records,
+    isRefetchError,
+    isFetching,
+    refetch,
+  } = useSuspenseQuery(buqCatalogOptions(tab));
   const deferredSearch = useDeferredValue(search);
   const { language } = i18n;
   const { desc } = toSortingState(deferredSearch, DEFAULT_BUQ_CATALOG_SORT)[0];
@@ -218,17 +255,38 @@ export function BuqCatalogTable({
     />
   );
   const footer = !isPastLastPage && data.totalElements > 0 && <DataTablePagination table={table} />;
-  if (cards) {
-    return (
-      <TableCards
-        busy={isStale}
-        empty={empty}
-        footer={footer}
-        listRef={pageStart.ref}
-        table={table}
-        title="name"
-      />
-    );
-  }
-  return <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />;
+  return (
+    <>
+      {isRefetchError && (
+        <Alert actionLayout="inline" variant="destructive">
+          <TriangleAlertIcon />
+          <AlertTitle>{t('manage-buq.error-title')}</AlertTitle>
+          <AlertDescription>{t('manage-buq.error-description')}</AlertDescription>
+          <AlertAction>
+            <Button
+              disabled={isFetching}
+              onClick={() => void refetch()}
+              size="sm"
+              variant="destructive"
+            >
+              {isFetching && <Spinner data-icon="inline-start" />}
+              {t('error.try-again')}
+            </Button>
+          </AlertAction>
+        </Alert>
+      )}
+      {cards ? (
+        <TableCards
+          busy={isStale}
+          empty={empty}
+          footer={footer}
+          listRef={pageStart.ref}
+          table={table}
+          title="name"
+        />
+      ) : (
+        <DataTable empty={empty} footer={footer} isStale={isStale} table={table} />
+      )}
+    </>
+  );
 }

@@ -27,10 +27,13 @@ it('disables Edit and Delete on read-only remarks and explains why', async () =>
   await renderManageBuq();
 
   const row = await screen.findByRole('row', { name: /Alternative/ });
+  const marker = within(row).getByText('manage-buq.read-only-label');
+  expect(marker).toBeVisible();
+  expect(marker).toHaveAccessibleDescription('manage-buq.read-only-description');
   for (const name of ['manage-buq.edit', 'manage-buq.delete']) {
     const action = within(row).getByRole('button', { name });
     expect(action).toHaveAttribute('aria-disabled', 'true');
-    expect(action).toHaveAccessibleDescription('manage-buq.read-only-reason');
+    expect(action).toHaveAccessibleDescription('manage-buq.read-only-description');
   }
 });
 
@@ -146,4 +149,39 @@ it('reports a missing-remark delete failure, closes the dialog and refreshes the
   expect(report).toHaveBeenCalledWith('manage-buq.delete.error-title', {
     description: 'error.description',
   });
+});
+
+it('keeps the cached list visible and retries after a failed refresh following deletion', async () => {
+  let deleted = false;
+  let failRefresh = false;
+  mockCatalogs(() => {
+    if (failRefresh) throw catalogError(500);
+    return deleted ? [second] : [first, second];
+  });
+  const remove = vi.spyOn(client, 'delete').mockImplementation(async () => {
+    deleted = true;
+    failRefresh = true;
+    return { status: 204 };
+  });
+  const user = userEvent.setup();
+  const { router } = await renderManageBuq();
+  const row = await screen.findByRole('row', { name: /Alternative/ });
+  await user.click(within(row).getByRole('button', { name: 'manage-buq.delete' }));
+  await user.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', {
+      name: 'manage-buq.delete',
+    }),
+  );
+
+  await waitFor(() => expect(router.state.location.search).toEqual({}));
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('manage-buq.error-title');
+  expect(row).toBeVisible();
+  failRefresh = false;
+  await user.click(within(alert).getByRole('button', { name: 'error.try-again' }));
+
+  await waitFor(() => expect(row).not.toBeInTheDocument());
+  expect(alert).not.toBeInTheDocument();
+  expect(screen.getByText(second.name)).toBeVisible();
+  expect(remove).toHaveBeenCalledOnce();
 });

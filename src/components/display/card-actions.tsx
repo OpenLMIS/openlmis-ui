@@ -59,32 +59,34 @@ export function CardActions({ label, actions }: { label: string; actions: CardAc
 function CardActionButton({ action }: { action: CardAction }) {
   const reasonId = useId();
   const reason = action.disabled ? action.reason : undefined;
+  const button = (
+    <Button
+      {...action.data}
+      aria-describedby={reason ? reasonId : undefined}
+      aria-label={action.name ?? action.label}
+      disabled={action.disabled}
+      focusableWhenDisabled={reason ? true : action.focusableWhenDisabled}
+      nativeButton={!action.link}
+      onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
+      render={action.link}
+      size="icon-sm"
+      variant={action.destructive ? 'destructive' : (action.variant ?? 'outline')}
+    >
+      {action.icon}
+    </Button>
+  );
   return (
     <Tooltip>
-      {reason && (
-        <span id={reasonId} hidden>
-          {reason}
-        </span>
+      {reason ? (
+        <>
+          <span id={reasonId} hidden>
+            {reason}
+          </span>
+          <TooltipTrigger render={<span className="inline-flex" />}>{button}</TooltipTrigger>
+        </>
+      ) : (
+        <TooltipTrigger render={button} />
       )}
-      <TooltipTrigger
-        render={
-          <Button
-            {...action.data}
-            aria-describedby={reason ? reasonId : undefined}
-            aria-label={action.name ?? action.label}
-            data-disabled-reason={reason ? true : undefined}
-            disabled={action.disabled}
-            focusableWhenDisabled={reason ? true : action.focusableWhenDisabled}
-            nativeButton={!action.link}
-            onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
-            render={action.link}
-            size="icon-sm"
-            variant={action.destructive ? 'destructive' : (action.variant ?? 'outline')}
-          />
-        }
-      >
-        {action.icon}
-      </TooltipTrigger>
       <TooltipContent>{reason ?? action.label}</TooltipContent>
     </Tooltip>
   );
