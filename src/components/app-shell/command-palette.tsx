@@ -17,6 +17,7 @@ import {
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { isNavParent } from '@/lib/config';
 import { hasOpenDialog } from '@/lib/has-open-dialog';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import type { LiveNavItem, LiveNavLink } from '@/lib/types';
 
 type PaletteSection = {
@@ -71,6 +72,7 @@ export function CommandPalette() {
     <>
       <button
         className="hidden h-8 w-56 items-center gap-2 rounded-md border border-border bg-muted/60 px-3 text-muted-foreground text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50 sm:inline-flex"
+        data-tour={TOUR_ANCHORS.shellSearch}
         onClick={() => setOpen(true)}
         type="button"
       >
