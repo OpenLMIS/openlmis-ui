@@ -1,4 +1,5 @@
 import type { DashboardReport } from '@/features/reports/lib/types';
+import { frameableUrl } from '@/lib/frameable-url';
 
 export type DashboardMode =
   | { kind: 'embedded'; uuid: string; supersetUrl: string }
@@ -8,20 +9,6 @@ export type DashboardMode =
   | { kind: 'unsupported' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** An absolute HTTP(S) address on another origin, carrying no credentials. */
-function frameableUrl(raw: string | null | undefined, appOrigin: string) {
-  if (!raw) return undefined;
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return undefined;
-  }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
-  if (url.username || url.password || url.origin === appOrigin) return undefined;
-  return url;
-}
 
 /** The Superset address the SDK and older sign-in build on, or undefined when unusable. */
 function supersetBase(raw: string | null | undefined, appOrigin: string) {

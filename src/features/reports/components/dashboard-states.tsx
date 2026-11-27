@@ -4,11 +4,13 @@ import { ExternalLinkIcon, RotateCcwIcon, ServerOffIcon, TriangleAlertIcon } fro
 import { type ReactNode, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { OfflineNotice, useOfflineFailure } from '@/components/app-shell/offline-notice';
+import { RetryButton } from '@/components/display/dialog-parts';
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -73,7 +75,7 @@ export function BackToReports() {
 }
 
 /** Restores focus only when retry replaced the focused control. */
-function useRetryFocus<T extends HTMLElement>(focus: boolean) {
+export function useRetryFocus<T extends HTMLElement>(focus: boolean) {
   const target = useRef<T>(null);
   useLayoutEffect(() => {
     if (focus && document.activeElement === document.body) target.current?.focus();
@@ -85,10 +87,12 @@ export function DashboardFailureState({
   failure,
   onRetry,
   focus,
+  hideBackLink = false,
 }: {
   failure: DashboardFailure;
   onRetry: () => void;
   focus: boolean;
+  hideBackLink?: boolean;
 }) {
   const { t } = useTranslation();
   const title = useRetryFocus<HTMLDivElement>(focus);
@@ -96,7 +100,8 @@ export function DashboardFailureState({
   const offline = useOfflineFailure(failure.error, onRetry, failure.kind === 'offline');
   if (offline || failure.kind === 'offline')
     return <OfflineNotice onRetry={onRetry} headingRef={offlineTitle} />;
-  if (failure.kind === 'not-set-up') return <DashboardNotSetUp titleRef={title} />;
+  if (failure.kind === 'not-set-up')
+    return <DashboardNotSetUp titleRef={title} onRetry={hideBackLink ? onRetry : undefined} />;
   const [titleKey, descriptionKey] = FAILURE_TEXT[failure.kind];
   const back = failure.kind === 'refused' || failure.kind === 'not-registered';
   return (
@@ -123,14 +128,20 @@ export function DashboardFailureState({
               {t('reports.dashboard.sign-out')}
             </Button>
           )}
-          {back && <BackToReports />}
+          {back && !hideBackLink && <BackToReports />}
         </div>
       </AlertAction>
     </Alert>
   );
 }
 
-export function DashboardNotSetUp({ titleRef }: { titleRef?: React.Ref<HTMLDivElement> }) {
+export function DashboardNotSetUp({
+  titleRef,
+  onRetry,
+}: {
+  titleRef?: React.Ref<HTMLDivElement>;
+  onRetry?: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <Empty>
@@ -143,6 +154,11 @@ export function DashboardNotSetUp({ titleRef }: { titleRef?: React.Ref<HTMLDivEl
         </EmptyTitle>
         <EmptyDescription>{t('reports.dashboard.not-set-up-description')}</EmptyDescription>
       </EmptyHeader>
+      {onRetry && (
+        <EmptyContent>
+          <RetryButton onClick={onRetry} />
+        </EmptyContent>
+      )}
     </Empty>
   );
 }

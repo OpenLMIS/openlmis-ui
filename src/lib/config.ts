@@ -126,7 +126,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { titleKey: 'nav.administration.manage-buq', to: '#' },
           { titleKey: 'nav.administration.data-export', to: '#' },
           { titleKey: 'nav.administration.data-import', to: '#' },
-          { titleKey: 'nav.administration.reports', to: '#' },
+          { titleKey: 'nav.administration.reports', to: '/administration/reports' },
           {
             titleKey: 'nav.administration.report-categories',
             to: '/administration/report-categories',

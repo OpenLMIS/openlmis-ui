@@ -28,6 +28,7 @@ import type {
   Reason,
   RejectionReason,
   RejectionReasonCategory,
+  ReportCategory,
   RequisitionGroup,
   Role,
   SupervisoryNode,
@@ -36,6 +37,7 @@ import type {
   ValidReasonsFilter,
 } from '@/features/reference-data/lib/types';
 import { client } from '@/integrations/axios';
+import { completePageContent } from '@/lib/complete-page-content';
 import { BY_IDS_BATCH, fetchByIds, fetchIdBatches } from '@/lib/fetch-by-ids';
 import { assertSessionScope, getSessionScope } from '@/lib/session-scope';
 import type { Page } from '@/lib/types';
@@ -514,4 +516,12 @@ export async function fetchSupplyLines(filter: { programId: string; supervisoryN
     params: filter,
   });
   return data.content;
+}
+
+export async function fetchAllReportCategories(signal?: AbortSignal) {
+  const { data } = await client.get<Page<ReportCategory>>('/reports/reportCategories', {
+    signal,
+    params: { size: 0 },
+  });
+  return completePageContent(data);
 }

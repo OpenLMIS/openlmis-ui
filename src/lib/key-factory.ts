@@ -90,3 +90,9 @@ export const homeStockBundleKeys = {
   reasons: (filter: Record<string, unknown>) =>
     [...queryKeys.validReasons.list(filter), 'home-stock-bundle'] as const,
 };
+
+export const homeReportQueryKey = (userId?: string) =>
+  queryKeys.dashboardReports.list({
+    showOnHomePage: true,
+    ...(userId === undefined ? {} : { userId }),
+  });

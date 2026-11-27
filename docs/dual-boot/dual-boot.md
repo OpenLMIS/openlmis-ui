@@ -33,10 +33,11 @@ Today the new UI has these screens:
 | Screen | What you can do |
 | --- | --- |
 | Login | Sign in, and ask for an email to reset a forgotten password |
-| Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment |
+| Home | See what needs your attention, based on your rights: requisitions to approve or convert, open orders, requisitions by month and by status, and cold chain equipment. If a dashboard report is set to show on Home and you have access to it, it appears below these cards |
 | Administration / Users | Find, add and edit users, reset their passwords, and give them roles, including copying another user's roles. Needs the Manage Users right; without it the menu leaves Users out and the page says so |
 | Administration / Roles | Find roles, see their rights, and create or edit them. Opening the page needs Manage Users, seeing a role's rights needs View Rights, and creating or editing needs Manage User Roles and View Rights |
 | Administration / Service Accounts | See the API keys other systems use, copy them, add a new one and delete one. Needs the Manage Service Accounts right; without it the menu leaves Service Accounts out and the page says so |
+| Administration / Reports | Find, add, edit and delete dashboard reports, and choose which one appears on Home. Needs the Manage Reports right |
 | Administration / Report Categories | See, add, rename and delete categories that group reports. Needs the Manage Report Categories right |
 | Administration / System Notifications | Find, add and edit messages shown to users, and set when they appear and expire. Needs the Manage System Notifications right |
 | Administration / Facilities | Find facilities by name or zone, add one with its programs, and edit one. Needs the Manage Facilities right |

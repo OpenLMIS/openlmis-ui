@@ -1,6 +1,7 @@
 import { CircleSlashIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RetryButton } from '@/components/display/dialog-parts';
 import { usePageHidden } from '@/components/shared/page-visibility';
 import {
   Empty,
@@ -23,11 +24,17 @@ export function DashboardViewer({
   supersetUrl,
   userId,
   username,
+  placement = 'catalog',
+  onReload,
+  panelHeading,
 }: {
   report: DashboardReport;
   supersetUrl: string | undefined;
   userId: string;
   username: string;
+  placement?: 'catalog' | 'home';
+  onReload?: () => void;
+  panelHeading?: RefObject<HTMLHeadingElement | null>;
 }) {
   const hidden = usePageHidden();
   const viewer = useRef<HTMLDivElement>(null);
@@ -43,8 +50,10 @@ export function DashboardViewer({
   };
 
   const mode = resolveDashboardMode(report, supersetUrl, window.location.origin);
-  if (mode.kind === 'not-configured') return <DashboardNotSetUp />;
-  if (mode.kind === 'unsupported') return <DashboardUnsupported />;
+  const home = placement === 'home';
+  const reload = home ? (onReload ?? retry) : undefined;
+  if (mode.kind === 'not-configured') return <DashboardNotSetUp onRetry={reload} />;
+  if (mode.kind === 'unsupported') return <DashboardUnsupported onRetry={reload} />;
   if (hidden) return null;
   const openingProps = {
     title: report.name,
@@ -59,6 +68,8 @@ export function DashboardViewer({
           url={mode.url}
           supersetUrl={mode.supersetUrl}
           username={username}
+          placement={placement}
+          panelHeading={panelHeading}
           {...openingProps}
         />
       ) : mode.kind === 'embedded' ? (
@@ -67,6 +78,7 @@ export function DashboardViewer({
           uuid={mode.uuid}
           supersetUrl={mode.supersetUrl}
           userId={userId}
+          placement={placement}
           {...openingProps}
         />
       ) : (
@@ -76,7 +88,7 @@ export function DashboardViewer({
   );
 }
 
-function DashboardUnsupported() {
+function DashboardUnsupported({ onRetry }: { onRetry?: () => void }) {
   const { t } = useTranslation();
   return (
     <Empty>
@@ -87,9 +99,7 @@ function DashboardUnsupported() {
         <EmptyTitle>{t('reports.dashboard.unsupported-title')}</EmptyTitle>
         <EmptyDescription>{t('reports.dashboard.unsupported-description')}</EmptyDescription>
       </EmptyHeader>
-      <EmptyContent>
-        <BackToReports />
-      </EmptyContent>
+      <EmptyContent>{onRetry ? <RetryButton onClick={onRetry} /> : <BackToReports />}</EmptyContent>
     </Empty>
   );
 }

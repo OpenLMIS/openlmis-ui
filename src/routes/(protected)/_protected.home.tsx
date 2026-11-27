@@ -1,7 +1,7 @@
 import { useIsFetching, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
-import { useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canOpen, useRouteRightsLookup } from '@/components/app-shell/nav-access';
 import { ActionTooltip } from '@/components/shared/action-tooltip';
@@ -32,8 +32,10 @@ import { ActionsSkeleton, DashboardSkeleton } from '@/features/home/components/d
 import { HomeDashboard, preloadCharts } from '@/features/home/components/home-dashboard';
 import type { DashboardAccess } from '@/features/home/lib/types';
 import { userRecordOptions } from '@/features/reference-data/api/queries';
+import { HomeReport } from '@/features/reports/components/home-report';
 import { systemNotificationsOptions } from '@/features/system-notifications/api/queries';
-import { queryKeys, userRecordKey } from '@/lib/key-factory';
+import { cancelHomeQueries } from '@/lib/home-navigation';
+import { homeReportQueryKey, queryKeys, userRecordKey } from '@/lib/key-factory';
 import { isOnline, useOnline } from '@/lib/online';
 
 /** Each part of the dashboard needs the right its legacy page asks for. */
@@ -66,7 +68,7 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
     }
   },
   onLeave: ({ context: { queryClient } }) => {
-    void queryClient.cancelQueries({ queryKey: queryKeys.home.all });
+    cancelHomeQueries(queryClient);
   },
   pendingComponent: HomePending,
   component: HomePage,
@@ -74,17 +76,19 @@ export const Route = createFileRoute('/(protected)/_protected/home')({
 
 function HomePage() {
   const userId = useLoginData((state) => state.referenceDataUserId);
+  const username = useLoginData((state) => state.username);
   // Signing out clears the cache before leaving, so the page must not load rights for no one.
-  return userId ? <HomeContent userId={userId} /> : null;
+  return userId ? <HomeContent userId={userId} username={username ?? ''} /> : null;
 }
 
-function HomeContent({ userId }: { userId: string }) {
+function HomeContent({ userId, username }: { userId: string; username: string }) {
   const online = useOnline();
   const { t } = useTranslation();
   const { data: rights } = useSuspenseQuery(rightsOptions(userId));
   const access = toAccess(rights);
   const rightsFor = useRouteRightsLookup();
   const [revision, setRevision] = useState(0);
+  const refreshButton = useRef<HTMLButtonElement>(null);
 
   return (
     <Workspace>
@@ -98,7 +102,11 @@ function HomeContent({ userId }: { userId: string }) {
           </WorkspaceDescription>
         </WorkspaceHeading>
         <WorkspaceActions>
-          <RefreshButton onRefresh={() => setRevision((current) => current + 1)} userId={userId} />
+          <RefreshButton
+            onRefresh={() => setRevision((current) => current + 1)}
+            buttonRef={refreshButton}
+            userId={userId}
+          />
           {canOpen('/administration/users', rights, rightsFor) && (
             <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
               <Button
@@ -119,30 +127,49 @@ function HomeContent({ userId }: { userId: string }) {
         </WorkspaceActions>
       </WorkspaceHeader>
       <WorkspaceContent>
-        <DashboardRevision value={revision}>
-          <HomeDashboard access={access} />
-        </DashboardRevision>
+        <div className="flex flex-col gap-4 @4xl/main:gap-6">
+          <DashboardRevision value={revision}>
+            <HomeDashboard access={access} />
+          </DashboardRevision>
+          <HomeReport
+            revision={revision}
+            refreshButton={refreshButton}
+            userId={userId}
+            username={username}
+          />
+        </div>
       </WorkspaceContent>
     </Workspace>
   );
 }
 
 /** Reloads every number and the user's rights; cards that had failed mount again and retry. */
-function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () => void }) {
+function RefreshButton({
+  userId,
+  onRefresh,
+  buttonRef,
+}: {
+  userId: string;
+  onRefresh: () => void;
+  buttonRef: RefObject<HTMLButtonElement | null>;
+}) {
   const online = useOnline();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fetchingDashboard = useIsFetching({ queryKey: queryKeys.home.all });
+  const fetchingHomeReport = useIsFetching({ queryKey: homeReportQueryKey() });
   const fetchingUser = useIsFetching({ queryKey: userRecordKey(userId), exact: true });
   const notifications = { queryKey: systemNotificationsOptions().queryKey, exact: true };
   const fetchingNotifications = useIsFetching(notifications);
-  const isFetching = fetchingDashboard + fetchingUser + fetchingNotifications > 0;
+  const isFetching =
+    fetchingDashboard + fetchingHomeReport + fetchingUser + fetchingNotifications > 0;
 
   const refresh = () => {
     if (!isOnline()) return;
     void queryClient.invalidateQueries({ queryKey: rightsOptions(userId).queryKey });
     void queryClient.refetchQueries({ queryKey: userRecordKey(userId), exact: true });
     void queryClient.resetQueries({ queryKey: queryKeys.home.all });
+    void queryClient.resetQueries({ queryKey: homeReportQueryKey(userId), exact: true });
     void queryClient.invalidateQueries(notifications);
     onRefresh();
   };
@@ -150,6 +177,7 @@ function RefreshButton({ userId, onRefresh }: { userId: string; onRefresh: () =>
   return (
     <ActionTooltip reason={online ? undefined : t('offline.action-description')}>
       <Button
+        ref={buttonRef}
         disabled={!online || isFetching}
         focusableWhenDisabled={!online}
         aria-description={online ? undefined : t('offline.action-description')}

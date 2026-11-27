@@ -270,3 +270,5 @@ export type CurrencySettings = {
   groupingSeparator: string;
   decimalSeparator: string;
 };
+
+export type ReportCategory = { id: string; name: string };

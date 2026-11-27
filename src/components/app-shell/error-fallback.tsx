@@ -31,6 +31,13 @@ const reloadPage = () => {
   window.location.reload();
 };
 
+export function retryChunkLoad(intoWorker: boolean, onSkipped?: () => void) {
+  whenLeaveAllowed(() => {
+    if (intoWorker) reloadPage();
+    else if (!reloadOnce(reloadPage)) onSkipped?.();
+  }, 'leave');
+}
+
 type ErrorFallbackProps = ErrorComponentProps & {
   title?: string;
   description?: string;
@@ -57,13 +64,13 @@ export function ErrorFallback({ error, reset, title, description, back }: ErrorF
   };
   const retry = () => {
     if (staleApp && canReloadIntoWorker()) {
-      whenLeaveAllowed(reloadPage, 'leave');
+      retryChunkLoad(true);
       return true;
     }
     const wasOnline = isOnline();
     seedOnline();
     if (offline && !(wasOnline && isOnline())) return;
-    if (staleApp) whenLeaveAllowed(() => reloadOnce(reloadPage) || rerun(), 'leave');
+    if (staleApp) retryChunkLoad(false, rerun);
     else rerun();
   };
   const offline = useOfflineFailure(error, retry, failedOffline && staleApp);

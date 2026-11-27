@@ -2,7 +2,7 @@ import { revalidateLogic } from '@tanstack/react-form';
 import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError, isCancel } from 'axios';
 import type { ParseKeys } from 'i18next';
-import { useEffect, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import * as z from 'zod';
 import { ErrorAlert } from '@/components/display/dialog-parts';
@@ -18,6 +18,8 @@ import {
   FormDialogSubmit,
   FormDialogTitle,
 } from '@/components/form-dialog/form-dialog';
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { FieldGroup } from '@/components/ui/field';
 import {
   changeSupersetLanguage,
@@ -31,6 +33,7 @@ import {
   DashboardArea,
   type DashboardFailure,
   DashboardFailureState,
+  useRetryFocus,
 } from '@/features/reports/components/dashboard-states';
 import { isOnline } from '@/lib/online';
 import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
@@ -38,6 +41,7 @@ import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
 type Status =
   | { kind: 'checking' }
   | { kind: 'sign-in' }
+  | { kind: 'finishing-sign-in' }
   | { kind: 'signed-in' }
   | { kind: 'failed'; failure: DashboardFailure };
 
@@ -62,6 +66,8 @@ export function SupersetSignIn({
   username,
   onRetry,
   restoreFocus,
+  placement,
+  panelHeading,
 }: {
   url: string;
   supersetUrl: string;
@@ -69,16 +75,22 @@ export function SupersetSignIn({
   username: string;
   onRetry: () => void;
   restoreFocus: boolean;
+  placement: 'catalog' | 'home';
+  panelHeading?: RefObject<HTMLHeadingElement | null>;
 }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<Status>({ kind: 'checking' });
   const [scope] = useState(getSessionScope);
-  const opening = useRef<AbortController>(null);
+  const home = placement === 'home';
+  const [signInRequested, setSignInRequested] = useState(false);
+  const finishing = status.kind === 'finishing-sign-in';
+  const needsSignIn = status.kind === 'sign-in' || finishing;
+  const signInTrigger = useRetryFocus<HTMLButtonElement>(home && needsSignIn && restoreFocus);
+  const signInRequest = useRef<AbortController>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    opening.current = controller;
     const current = () => !controller.signal.aborted && scope === getSessionScope();
     void (async () => {
       try {
@@ -101,31 +113,67 @@ export function SupersetSignIn({
         });
       }
     })();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      signInRequest.current?.abort();
+    };
   }, [supersetUrl, username, scope, i18n]);
 
   if (status.kind === 'signed-in')
     return <DashboardFrame url={url} title={title} onRetry={onRetry} restoreFocus={restoreFocus} />;
   if (status.kind === 'failed')
     return (
-      <DashboardFailureState failure={status.failure} onRetry={onRetry} focus={restoreFocus} />
+      <DashboardFailureState
+        failure={status.failure}
+        onRetry={onRetry}
+        focus={restoreFocus}
+        hideBackLink={home}
+      />
     );
+  const dialogOpen = status.kind === 'sign-in' && (!home || signInRequested);
   return (
     <>
-      <DashboardArea connecting frame={null} recovery={null} />
+      {home && needsSignIn ? (
+        <div className="flex flex-1 flex-col justify-center">
+          <Alert actionLayout="inline">
+            <AlertTitle>{t('reports.dashboard.sign-in-title')}</AlertTitle>
+            <AlertDescription>{t('reports.dashboard.sign-in-description')}</AlertDescription>
+            <AlertAction>
+              <Button ref={signInTrigger} onClick={() => setSignInRequested(true)} type="button">
+                {t('reports.dashboard.sign-in-submit')}
+              </Button>
+            </AlertAction>
+          </Alert>
+        </div>
+      ) : (
+        <DashboardArea connecting frame={null} recovery={null} />
+      )}
       <FormDialog
         closeButton={false}
-        open={status.kind === 'sign-in'}
+        open={dialogOpen}
+        finalFocus={
+          home
+            ? () => (finishing ? panelHeading?.current : signInTrigger.current) ?? true
+            : undefined
+        }
+        onOpenChangeComplete={(open) => {
+          if (!open && finishing) setStatus({ kind: 'signed-in' });
+        }}
         onOpenChange={(open) => {
-          if (!open) void navigate({ to: '/reports' });
+          if (open) return;
+          if (home) {
+            signInRequest.current?.abort();
+            setSignInRequested(false);
+          } else void navigate({ to: '/reports' });
         }}
       >
-        {status.kind === 'sign-in' && (
+        {needsSignIn && (
           <SignInForm
             username={username}
             signIn={async (password) => {
-              const signal = opening.current?.signal;
-              if (!signal) return;
+              const request = new AbortController();
+              signInRequest.current = request;
+              const { signal } = request;
               try {
                 await signInToSuperset({ supersetUrl, username, password, scope, signal });
               } catch (error) {
@@ -140,7 +188,8 @@ export function SupersetSignIn({
               }
               if (signal.aborted || scope !== getSessionScope()) return;
               await changeSupersetLanguage(supersetUrl, i18n.language, signal).catch(() => {});
-              if (!signal.aborted && scope === getSessionScope()) setStatus({ kind: 'signed-in' });
+              if (!signal.aborted && scope === getSessionScope())
+                setStatus({ kind: home ? 'finishing-sign-in' : 'signed-in' });
             }}
           />
         )}

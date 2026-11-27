@@ -1,4 +1,4 @@
-export type ReportCategory = { id: string; name: string };
+import type { ReportCategory } from '@/features/reference-data/lib/types';
 
 type ReportSummary = {
   id: string;

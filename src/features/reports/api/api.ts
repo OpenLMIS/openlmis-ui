@@ -6,13 +6,13 @@ import {
 } from '@/features/reports/lib/report-lookups';
 import type {
   DashboardReport,
-  ReportCategory,
   ReportFormat,
   ReportTemplate,
   TemplateReport,
 } from '@/features/reports/lib/types';
 import { client } from '@/integrations/axios';
 import { basicAuthorization } from '@/lib/basic-auth';
+import { completePageContent } from '@/lib/complete-page-content';
 import { fetchReportFile } from '@/lib/fetch-report';
 import { getAuthClientCredentials } from '@/lib/runtime-config';
 import { assertSessionScope, SessionEndedError } from '@/lib/session-scope';
@@ -24,21 +24,13 @@ export const apiBase = (): ApiBase => ({
   origin: window.location.origin,
 });
 
-async function fetchCatalog<T>(path: string, signal?: AbortSignal, params = {}) {
-  const { data } = await client.get<Page<T>>(path, { signal, params: { size: 0, ...params } });
-  if (data.totalPages > 1 || data.totalElements !== data.content.length) {
-    throw new Error('The report catalog response is incomplete');
-  }
-  return data.content;
+export async function fetchAvailableDashboards(signal?: AbortSignal, showOnHomePage = false) {
+  const { data } = await client.get<Page<DashboardReport>>(
+    '/reports/dashboardReports/availableReports',
+    { signal, params: { size: 0, showOnHomePage } },
+  );
+  return completePageContent(data);
 }
-
-export const fetchReportCategories = (signal?: AbortSignal) =>
-  fetchCatalog<ReportCategory>('/reports/reportCategories', signal);
-
-export const fetchAvailableDashboards = (signal?: AbortSignal) =>
-  fetchCatalog<DashboardReport>('/reports/dashboardReports/availableReports', signal, {
-    showOnHomePage: false,
-  });
 
 /** Drops the compiled template the server sends with every report, so it never reaches the cache. */
 function withoutTemplateData<T extends object>(report: T): T {

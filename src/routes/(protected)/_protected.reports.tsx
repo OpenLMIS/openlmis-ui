@@ -11,11 +11,8 @@ import {
   WorkspaceTitle,
 } from '@/components/workspace/workspace';
 import { requireRouteRights } from '@/features/auth/lib/access';
-import {
-  availableDashboardsOptions,
-  reportCategoriesOptions,
-  templateReportsOptions,
-} from '@/features/reports/api/queries';
+import { reportCategoriesOptions } from '@/features/reference-data/api/queries';
+import { availableDashboardsOptions, templateReportsOptions } from '@/features/reports/api/queries';
 import { ReportCatalog, ReportCatalogSkeleton } from '@/features/reports/components/report-catalog';
 import { RIGHTS } from '@/lib/rights';
 import { getReportingModules } from '@/lib/runtime-config';
