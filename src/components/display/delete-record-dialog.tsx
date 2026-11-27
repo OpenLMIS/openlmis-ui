@@ -43,15 +43,20 @@ type DeleteCopy = {
   missingTitle: string;
   pendingTitle: string;
   description: (name: string) => string;
+  warning?: string;
   missingDescription: string;
   action: string;
 };
+
+type BlockedRecord<T> = (record: T) => { title: string; description: string } | undefined;
 
 type DeleteRecordOptions<T extends RecordSummary, TKey extends QueryKey> = {
   detailOptions: (id: string, opening: number) => UseQueryOptions<T, Error, T, TKey>;
   removeRecord: (id: string) => Promise<unknown>;
   refresh: (client: QueryClient, isCurrent: () => boolean) => Promise<void>;
   getCopy: (t: TFunction) => DeleteCopy;
+  blocked?: BlockedRecord<T>;
+  refreshOnError?: (error: unknown) => boolean;
 };
 
 export type DeleteRecordDialogProps<T extends RecordSummary> = {
@@ -72,6 +77,8 @@ export function DeleteRecordDialog<T extends RecordSummary, TKey extends QueryKe
   removeRecord,
   refresh,
   getCopy,
+  blocked,
+  refreshOnError,
 }: DeleteRecordDialogProps<T> & DeleteRecordOptions<T, TKey>) {
   const { t } = useTranslation();
   const copy = getCopy(t);
@@ -96,7 +103,9 @@ export function DeleteRecordDialog<T extends RecordSummary, TKey extends QueryKe
       if (description !== null) {
         toast.error(copy.errorTitle, { description });
       }
-      if (isNotFound(error)) await refresh(queryClient, remove.isCurrent);
+      if (isNotFound(error) || refreshOnError?.(error)) {
+        await refresh(queryClient, remove.isCurrent);
+      }
     },
   });
   const props = dialogProps(remove.isPending);
@@ -122,6 +131,7 @@ export function DeleteRecordDialog<T extends RecordSummary, TKey extends QueryKe
       >
         {shown && (
           <DeleteRecordContent
+            blocked={blocked}
             copy={copy}
             detailOptions={detailOptions(shown, opening)}
             cancel={cancel}
@@ -156,6 +166,7 @@ export function DeleteRecordDialog<T extends RecordSummary, TKey extends QueryKe
 }
 
 function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
+  blocked,
   copy,
   detailOptions,
   cancel,
@@ -164,6 +175,7 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
   onDelete,
   pending,
 }: {
+  blocked?: BlockedRecord<T>;
   copy: DeleteCopy;
   detailOptions: UseQueryOptions<T, Error, T, TKey>;
   cancel: RefObject<HTMLButtonElement | null>;
@@ -186,6 +198,7 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
       : isNotFound(detail.error)
         ? 'missing'
         : 'failed';
+  const blockedNotice = record && blocked?.(record);
   const failed = state === 'failed';
   const missing = state === 'missing';
   const refused = failed && isRefused(detail.error);
@@ -212,7 +225,7 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
         </AlertDialogMedia>
         <AlertDialogTitle>
           {state === 'found'
-            ? copy.title
+            ? (blockedNotice?.title ?? copy.title)
             : missing
               ? copy.missingTitle
               : failed
@@ -224,7 +237,14 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
         ) : (
           <AlertDialogDescription>
             {record ? (
-              <span className="line-clamp-4 wrap-anywhere">{copy.description(record.name)}</span>
+              <>
+                <span className="line-clamp-4 wrap-anywhere">
+                  {blockedNotice?.description ?? copy.description(record.name)}
+                </span>
+                {!blockedNotice && copy.warning && (
+                  <span className="mt-2 block">{copy.warning}</span>
+                )}
+              </>
             ) : missing ? (
               copy.missingDescription
             ) : (
@@ -235,10 +255,10 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={pending} ref={cancel}>
-          {t(missing || failed ? 'dialog.close' : 'dialog.cancel')}
+          {t(missing || failed || blockedNotice ? 'dialog.close' : 'dialog.cancel')}
         </AlertDialogCancel>
         {failed && !refused && <RetryButton onClick={() => void detail.refetch()} />}
-        {!missing && !failed && (
+        {!missing && !failed && !blockedNotice && (
           <Button
             disabled={pending || !record || !!deleted}
             focusableWhenDisabled={pending}

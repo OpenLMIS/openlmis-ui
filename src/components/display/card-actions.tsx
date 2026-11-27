@@ -1,5 +1,5 @@
 import { EllipsisIcon } from 'lucide-react';
-import { createContext, type ReactElement, type ReactNode, use, useRef } from 'react';
+import { createContext, type ReactElement, type ReactNode, use, useId, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,6 +20,7 @@ export type CardAction = {
   variant?: 'default' | 'secondary';
   disabled?: boolean;
   focusableWhenDisabled?: boolean;
+  reason?: string;
   opensDialog?: boolean;
   onSelect?: (trigger: HTMLButtonElement) => void;
   link?: ReactElement;
@@ -56,15 +57,24 @@ export function CardActions({ label, actions }: { label: string; actions: CardAc
 }
 
 function CardActionButton({ action }: { action: CardAction }) {
+  const reasonId = useId();
+  const reason = action.disabled ? action.reason : undefined;
   return (
     <Tooltip>
+      {reason && (
+        <span id={reasonId} hidden>
+          {reason}
+        </span>
+      )}
       <TooltipTrigger
         render={
           <Button
             {...action.data}
+            aria-describedby={reason ? reasonId : undefined}
             aria-label={action.name ?? action.label}
+            data-disabled-reason={reason ? true : undefined}
             disabled={action.disabled}
-            focusableWhenDisabled={action.focusableWhenDisabled}
+            focusableWhenDisabled={reason ? true : action.focusableWhenDisabled}
             nativeButton={!action.link}
             onClick={action.onSelect && ((event) => action.onSelect?.(event.currentTarget))}
             render={action.link}
@@ -75,7 +85,7 @@ function CardActionButton({ action }: { action: CardAction }) {
       >
         {action.icon}
       </TooltipTrigger>
-      <TooltipContent>{action.label}</TooltipContent>
+      <TooltipContent>{reason ?? action.label}</TooltipContent>
     </Tooltip>
   );
 }
