@@ -32,6 +32,17 @@ export const TOUR_ANCHORS = {
   stockCardUnit: 'stock-card-unit',
   stockCardView: 'stock-card-view',
   stockCardLines: 'stock-card-lines',
+  transactionHistoryPicker: 'transaction-history-picker',
+  transactionHistorySearch: 'transaction-history-search',
+  transactionHistoryFilters: 'transaction-history-filters',
+  transactionHistoryView: 'transaction-history-view',
+  transactionHistoryResults: 'transaction-history-results',
+  transactionDetailsReverse: 'transaction-details-reverse',
+  transactionDetailsPrint: 'transaction-details-print',
+  transactionDetailsSummary: 'transaction-details-summary',
+  transactionDetailsUnit: 'transaction-details-unit',
+  transactionDetailsView: 'transaction-details-view',
+  transactionDetailsLines: 'transaction-details-lines',
 } as const;
 
 /** Anchor of one sidebar menu section, keyed by its navigation title key. */
