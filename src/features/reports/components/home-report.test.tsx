@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import type { EmbedDashboardParams } from '@superset-ui/embedded-sdk';
 import { onlineManager, QueryClient } from '@tanstack/react-query';
-import { act, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useLoginData } from '@/features/auth/store/login-data';
+import * as reportsApi from '@/features/reports/api/api';
 import { HomeReport } from '@/features/reports/components/home-report';
+import * as dashboardMode from '@/features/reports/lib/dashboard-mode';
+import * as leaveGuard from '@/hooks/use-leave-guard';
 import { client } from '@/integrations/axios';
 import * as chunkLoad from '@/lib/chunk-load';
 import { homeReportQueryKey } from '@/lib/key-factory';
@@ -59,6 +62,7 @@ afterEach(() => {
   cleanup();
   useLoginData.getState().clearLoginData();
   onlineManager.setOnline(true);
+  getEmbedDashboard.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -171,28 +175,84 @@ it('opens Superset sign-in on request and restores focus on Escape', async () =>
   expect(router.state.location.pathname).toBe('/');
 });
 
-it('recovers inline from a failed Superset SDK load without reloading Home', async () => {
+it('moves focus to Sign In after retry and to the panel heading after sign-in', async () => {
   const user = userEvent.setup();
+  const legacy = { ...report, type: 'SUPERSET', url: 'https://superset.example.org/dashboard/1' };
+  vi.spyOn(reportsApi, 'checkSupersetSession')
+    .mockRejectedValueOnce(httpError(500))
+    .mockResolvedValueOnce({ isAuthorized: false, state: 'test' });
+  vi.spyOn(reportsApi, 'signInToSuperset').mockResolvedValue(undefined);
+  vi.spyOn(reportsApi, 'changeSupersetLanguage').mockResolvedValue(undefined);
+  vi.spyOn(client, 'get').mockResolvedValue(page([legacy]));
+  renderReport();
+
+  await user.click(await screen.findByRole('button', { name: 'error.try-again' }));
+  const signIn = await screen.findByRole('button', { name: 'reports.dashboard.sign-in-submit' });
+  expect(signIn).toHaveFocus();
+
+  await user.keyboard('{Enter}');
+  const dialog = await screen.findByRole('dialog');
+  await user.type(await within(dialog).findByLabelText('login.password'), 'secret');
+  await user.click(
+    within(dialog).getByRole('button', { name: 'reports.dashboard.sign-in-submit' }),
+  );
+
+  expect(await screen.findByTitle(report.name)).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole('heading', { name: report.name })).toHaveFocus());
+});
+
+it('offers a guarded reload on Retry when the Superset SDK chunk fails to load', async () => {
+  const user = userEvent.setup();
+  const askToLeave = vi.fn<Parameters<typeof leaveGuard.useLeaveGuard>[1]>();
+  const guard = renderHook(() => leaveGuard.useLeaveGuard(true, askToLeave));
   const reloadOnce = vi.spyOn(chunkLoad, 'reloadOnce').mockReturnValue(true);
   const embedded = {
     ...report,
     type: 'SUPERSET',
     embeddedUuid: '42ef1032-a83a-40e9-9b67-a2c2569c2b66',
   };
-  getEmbedDashboard.mockImplementationOnce(() => {
-    throw new TypeError('Failed to fetch dynamically imported module');
+  const failure = new TypeError('Failed to fetch dynamically imported module');
+  getEmbedDashboard.mockImplementation(() => {
+    throw failure;
   });
-  vi.spyOn(client, 'get').mockImplementation(async (url) => {
-    if (url === availableUrl) return page([embedded]);
-    if (url === '/reports/superset/guest-token') throw httpError(403);
-    throw new Error(`Unexpected request: ${url}`);
-  });
-  renderReport();
+  vi.spyOn(client, 'get').mockResolvedValue(page([embedded]));
+  const onCaughtError = vi.fn();
+  renderPage(<HomeReport userId="admin" username="ada" />, { onCaughtError });
 
   expect(await screen.findByRole('alert')).toHaveTextContent('home.load-error');
+  expect(onCaughtError).toHaveBeenCalledWith(failure, expect.anything());
+  expect(askToLeave).not.toHaveBeenCalled();
   expect(reloadOnce).not.toHaveBeenCalled();
+
   await user.click(screen.getByRole('button', { name: 'error.try-again' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('reports.dashboard.refused-title');
+  expect(askToLeave).toHaveBeenCalledExactlyOnceWith(expect.any(Function), 'leave');
+  expect(reloadOnce).not.toHaveBeenCalled();
+
+  act(() => askToLeave.mock.calls[0][0]());
+  expect(reloadOnce).toHaveBeenCalledOnce();
+  expect(getEmbedDashboard).toHaveBeenCalledTimes(1);
+  guard.unmount();
+});
+
+it('remounts after other caught viewer errors without asking to reload', async () => {
+  const user = userEvent.setup();
+  const reloadOnce = vi.spyOn(chunkLoad, 'reloadOnce').mockReturnValue(true);
+  const failure = new Error('Unexpected viewer error');
+  const resolve = vi.spyOn(dashboardMode, 'resolveDashboardMode').mockImplementation(() => {
+    throw failure;
+  });
+  vi.spyOn(client, 'get').mockResolvedValue(page([report]));
+  const onCaughtError = vi.fn();
+  renderPage(<HomeReport userId="admin" username="ada" />, { onCaughtError });
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('home.load-error');
+  expect(onCaughtError).toHaveBeenCalledWith(failure, expect.anything());
+  resolve.mockRestore();
+  await user.click(screen.getByRole('button', { name: 'error.try-again' }));
+
+  expect(await screen.findByTitle(report.name)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: report.name })).toHaveFocus();
   expect(reloadOnce).not.toHaveBeenCalled();
 });
 

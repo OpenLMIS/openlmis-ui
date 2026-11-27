@@ -75,7 +75,7 @@ export function BackToReports() {
 }
 
 /** Restores focus only when retry replaced the focused control. */
-function useRetryFocus<T extends HTMLElement>(focus: boolean) {
+export function useRetryFocus<T extends HTMLElement>(focus: boolean) {
   const target = useRef<T>(null);
   useLayoutEffect(() => {
     if (focus && document.activeElement === document.body) target.current?.focus();

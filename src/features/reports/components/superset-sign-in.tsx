@@ -2,7 +2,7 @@ import { revalidateLogic } from '@tanstack/react-form';
 import { useNavigate } from '@tanstack/react-router';
 import { isAxiosError, isCancel } from 'axios';
 import type { ParseKeys } from 'i18next';
-import { useEffect, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import * as z from 'zod';
 import { ErrorAlert } from '@/components/display/dialog-parts';
@@ -33,6 +33,7 @@ import {
   DashboardArea,
   type DashboardFailure,
   DashboardFailureState,
+  useRetryFocus,
 } from '@/features/reports/components/dashboard-states';
 import { isOnline } from '@/lib/online';
 import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
@@ -40,6 +41,7 @@ import { getSessionScope, SessionEndedError } from '@/lib/session-scope';
 type Status =
   | { kind: 'checking' }
   | { kind: 'sign-in' }
+  | { kind: 'finishing-sign-in' }
   | { kind: 'signed-in' }
   | { kind: 'failed'; failure: DashboardFailure };
 
@@ -65,6 +67,7 @@ export function SupersetSignIn({
   onRetry,
   restoreFocus,
   placement,
+  panelHeading,
 }: {
   url: string;
   supersetUrl: string;
@@ -73,6 +76,7 @@ export function SupersetSignIn({
   onRetry: () => void;
   restoreFocus: boolean;
   placement: 'catalog' | 'home';
+  panelHeading?: RefObject<HTMLHeadingElement | null>;
 }) {
   const { i18n, t } = useTranslation();
   const navigate = useNavigate();
@@ -80,7 +84,9 @@ export function SupersetSignIn({
   const [scope] = useState(getSessionScope);
   const home = placement === 'home';
   const [signInRequested, setSignInRequested] = useState(false);
-  const signInTrigger = useRef<HTMLButtonElement>(null);
+  const finishing = status.kind === 'finishing-sign-in';
+  const needsSignIn = status.kind === 'sign-in' || finishing;
+  const signInTrigger = useRetryFocus<HTMLButtonElement>(home && needsSignIn && restoreFocus);
   const signInRequest = useRef<AbortController>(null);
 
   useEffect(() => {
@@ -124,27 +130,35 @@ export function SupersetSignIn({
         hideBackLink={home}
       />
     );
-  const needsSignIn = status.kind === 'sign-in';
-  const dialogOpen = needsSignIn && (!home || signInRequested);
+  const dialogOpen = status.kind === 'sign-in' && (!home || signInRequested);
   return (
     <>
       {home && needsSignIn ? (
-        <Alert actionLayout="inline">
-          <AlertTitle>{t('reports.dashboard.sign-in-title')}</AlertTitle>
-          <AlertDescription>{t('reports.dashboard.sign-in-description')}</AlertDescription>
-          <AlertAction>
-            <Button ref={signInTrigger} onClick={() => setSignInRequested(true)} type="button">
-              {t('reports.dashboard.sign-in-submit')}
-            </Button>
-          </AlertAction>
-        </Alert>
+        <div className="flex flex-1 flex-col justify-center">
+          <Alert actionLayout="inline">
+            <AlertTitle>{t('reports.dashboard.sign-in-title')}</AlertTitle>
+            <AlertDescription>{t('reports.dashboard.sign-in-description')}</AlertDescription>
+            <AlertAction>
+              <Button ref={signInTrigger} onClick={() => setSignInRequested(true)} type="button">
+                {t('reports.dashboard.sign-in-submit')}
+              </Button>
+            </AlertAction>
+          </Alert>
+        </div>
       ) : (
         <DashboardArea connecting frame={null} recovery={null} />
       )}
       <FormDialog
         closeButton={false}
         open={dialogOpen}
-        finalFocus={home ? () => signInTrigger.current ?? true : undefined}
+        finalFocus={
+          home
+            ? () => (finishing ? panelHeading?.current : signInTrigger.current) ?? true
+            : undefined
+        }
+        onOpenChangeComplete={(open) => {
+          if (!open && finishing) setStatus({ kind: 'signed-in' });
+        }}
         onOpenChange={(open) => {
           if (open) return;
           if (home) {
@@ -153,7 +167,7 @@ export function SupersetSignIn({
           } else void navigate({ to: '/reports' });
         }}
       >
-        {dialogOpen && (
+        {needsSignIn && (
           <SignInForm
             username={username}
             signIn={async (password) => {
@@ -174,7 +188,8 @@ export function SupersetSignIn({
               }
               if (signal.aborted || scope !== getSessionScope()) return;
               await changeSupersetLanguage(supersetUrl, i18n.language, signal).catch(() => {});
-              if (!signal.aborted && scope === getSessionScope()) setStatus({ kind: 'signed-in' });
+              if (!signal.aborted && scope === getSessionScope())
+                setStatus({ kind: home ? 'finishing-sign-in' : 'signed-in' });
             }}
           />
         )}

@@ -3,15 +3,18 @@ import { CatchBoundary } from '@tanstack/react-router';
 import { AlertCircleIcon } from 'lucide-react';
 import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { retryChunkLoad } from '@/components/app-shell/error-fallback';
 import { useOfflineFailure } from '@/components/app-shell/offline-notice';
 import { Alert, AlertAction, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { homeReportOptions } from '@/features/reports/api/queries';
 import { DashboardViewer } from '@/features/reports/components/dashboard-viewer';
+import { isChunkLoadError } from '@/lib/chunk-load';
 import { isOnline, useOnline } from '@/lib/online';
-import { reportApiError, reportCaughtError } from '@/lib/report-error';
+import { reportApiError } from '@/lib/report-error';
 import { getSupersetUrl } from '@/lib/runtime-config';
+import { canReloadIntoWorker } from '@/lib/service-worker';
 
 export function HomeReport({
   userId,
@@ -86,10 +89,13 @@ export function HomeReport({
           <CatchBoundary
             key={`${report.id}:${revision}`}
             getResetKey={() => revision}
-            onCatch={reportCaughtError}
-            errorComponent={({ reset }) => (
+            errorComponent={({ error, reset }) => (
               <HomeReportError
                 onRetry={() => {
+                  if (isChunkLoadError(error)) {
+                    retryChunkLoad(canReloadIntoWorker());
+                    return;
+                  }
                   heading.current?.focus();
                   reset();
                 }}
@@ -98,6 +104,7 @@ export function HomeReport({
           >
             <DashboardViewer
               onReload={retryAndRestoreFocus}
+              panelHeading={heading}
               placement="home"
               report={report}
               supersetUrl={getSupersetUrl(report.embeddedUuid ? 'embedded' : 'legacy')}

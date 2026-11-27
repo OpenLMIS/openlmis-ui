@@ -1,5 +1,5 @@
 import { CircleSlashIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RetryButton } from '@/components/display/dialog-parts';
 import { usePageHidden } from '@/components/shared/page-visibility';
@@ -26,6 +26,7 @@ export function DashboardViewer({
   username,
   placement = 'catalog',
   onReload,
+  panelHeading,
 }: {
   report: DashboardReport;
   supersetUrl: string | undefined;
@@ -33,6 +34,7 @@ export function DashboardViewer({
   username: string;
   placement?: 'catalog' | 'home';
   onReload?: () => void;
+  panelHeading?: RefObject<HTMLHeadingElement | null>;
 }) {
   const hidden = usePageHidden();
   const viewer = useRef<HTMLDivElement>(null);
@@ -67,6 +69,7 @@ export function DashboardViewer({
           supersetUrl={mode.supersetUrl}
           username={username}
           placement={placement}
+          panelHeading={panelHeading}
           {...openingProps}
         />
       ) : mode.kind === 'embedded' ? (
