@@ -273,6 +273,9 @@ function ReportForm({
         onSuccess: () => {
           if (activeRef.current) onDone();
         },
+        onError: (error) => {
+          if (report && isNotFound(error) && activeRef.current) onDone();
+        },
       })
       .catch(() => undefined);
   }

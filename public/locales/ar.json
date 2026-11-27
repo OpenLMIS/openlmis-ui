@@ -414,7 +414,7 @@
   "command.search": "بحث...",
   "command.title": "لوحة الأوامر",
   "dashboard-reports.actions": "الإجراءات",
-  "dashboard-reports.actions-for": "إجراءات فئة {name}",
+  "dashboard-reports.actions-for": "إجراءات التقرير {name}",
   "dashboard-reports.add": "إضافة تقرير لوحة معلومات",
   "dashboard-reports.category": "الفئة",
   "dashboard-reports.delete": "حذف",

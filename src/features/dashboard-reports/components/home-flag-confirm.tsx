@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertDialog,
@@ -20,19 +21,21 @@ export function HomeFlagConfirm({
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
+  const [shown, setShown] = useState(proposal);
+  if (proposal && proposal !== shown) setShown(proposal);
   return (
     <AlertDialog open={!!proposal} onOpenChange={(open) => !open && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('dashboard-reports.home-confirm.title')}</AlertDialogTitle>
-          {proposal && (
+          {shown && (
             <AlertDialogDescription>
               {t('dashboard-reports.home-confirm.description', {
-                current: proposal.current,
-                name: proposal.name,
+                current: shown.current,
+                name: shown.name,
               })}
-              {!proposal.enabled && (
-                <> {t('dashboard-reports.home-confirm.disabled', { name: proposal.name })}</>
+              {!shown.enabled && (
+                <> {t('dashboard-reports.home-confirm.disabled', { name: shown.name })}</>
               )}
             </AlertDialogDescription>
           )}

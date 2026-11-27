@@ -62,7 +62,8 @@ function createColumns(t: TFunction, onEdit: ReportAction, onDelete: ReportActio
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('dashboard-reports.category')} />
       ),
-      cell: ({ getValue }) => <CellText title={getValue()}>{getValue() || '-'}</CellText>,
+      cell: ({ getValue }) =>
+        getValue() ? <CellText title={getValue()}>{getValue()}</CellText> : null,
       meta: { label: t('dashboard-reports.category') },
     }),
     columnHelper.accessor('type', {
