@@ -1,5 +1,6 @@
 export const RIGHTS = {
   reportCategoriesManage: 'REPORT_CATEGORIES_MANAGE',
+  manageBuq: 'MANAGE_BUQ',
   reportsManage: 'REPORTS_MANAGE',
   reportsView: 'REPORTS_VIEW',
   orderCreate: 'ORDER_CREATE',

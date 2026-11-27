@@ -186,6 +186,7 @@ it('checks route rights in each route that declares them', () => {
 });
 
 it.each([
+  ['/administration/manage-buq', [RIGHTS.manageBuq], RIGHTS.reportsView],
   ['/administration/report-categories', [RIGHTS.reportCategoriesManage], RIGHTS.reportsView],
   ['/administration/reports', [RIGHTS.reportsManage], RIGHTS.reportsView],
   ['/administration/service-accounts', [RIGHTS.serviceAccountsManage], RIGHTS.usersManage],

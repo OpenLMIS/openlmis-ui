@@ -25,6 +25,7 @@ import { Route as protectedProtectedAdministrationFacilityTypesRouteImport } fro
 import { Route as protectedProtectedAdministrationGeographicZonesRouteImport } from './routes/(protected)/_protected.administration.geographic-zones'
 import { Route as protectedProtectedAdministrationIdealStockAmountsRouteImport } from './routes/(protected)/_protected.administration.ideal-stock-amounts'
 import { Route as protectedProtectedAdministrationLotsRouteImport } from './routes/(protected)/_protected.administration.lots'
+import { Route as protectedProtectedAdministrationManageBuqRouteImport } from './routes/(protected)/_protected.administration.manage-buq'
 import { Route as protectedProtectedAdministrationProcessingSchedulesRouteImport } from './routes/(protected)/_protected.administration.processing-schedules'
 import { Route as protectedProtectedAdministrationProductsRouteImport } from './routes/(protected)/_protected.administration.products'
 import { Route as protectedProtectedAdministrationProgramsRouteImport } from './routes/(protected)/_protected.administration.programs'
@@ -195,6 +196,12 @@ const protectedProtectedAdministrationLotsRoute =
   protectedProtectedAdministrationLotsRouteImport.update({
     id: '/administration/lots',
     path: '/administration/lots',
+    getParentRoute: () => protectedProtectedRoute,
+  } as any)
+const protectedProtectedAdministrationManageBuqRoute =
+  protectedProtectedAdministrationManageBuqRouteImport.update({
+    id: '/administration/manage-buq',
+    path: '/administration/manage-buq',
     getParentRoute: () => protectedProtectedRoute,
   } as any)
 const protectedProtectedAdministrationProcessingSchedulesRoute =
@@ -712,6 +719,7 @@ export interface FileRoutesByFullPath {
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/administration/manage-buq': typeof protectedProtectedAdministrationManageBuqRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
@@ -809,6 +817,7 @@ export interface FileRoutesByTo {
   '/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/administration/manage-buq': typeof protectedProtectedAdministrationManageBuqRoute
   '/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
@@ -909,6 +918,7 @@ export interface FileRoutesById {
   '/(protected)/_protected/administration/geographic-zones': typeof protectedProtectedAdministrationGeographicZonesRoute
   '/(protected)/_protected/administration/ideal-stock-amounts': typeof protectedProtectedAdministrationIdealStockAmountsRoute
   '/(protected)/_protected/administration/lots': typeof protectedProtectedAdministrationLotsRoute
+  '/(protected)/_protected/administration/manage-buq': typeof protectedProtectedAdministrationManageBuqRoute
   '/(protected)/_protected/administration/processing-schedules': typeof protectedProtectedAdministrationProcessingSchedulesRoute
   '/(protected)/_protected/administration/products': typeof protectedProtectedAdministrationProductsRoute
   '/(protected)/_protected/administration/programs': typeof protectedProtectedAdministrationProgramsRoute
@@ -1010,6 +1020,7 @@ export interface FileRouteTypes {
     | '/administration/geographic-zones'
     | '/administration/ideal-stock-amounts'
     | '/administration/lots'
+    | '/administration/manage-buq'
     | '/administration/processing-schedules'
     | '/administration/products'
     | '/administration/programs'
@@ -1107,6 +1118,7 @@ export interface FileRouteTypes {
     | '/administration/geographic-zones'
     | '/administration/ideal-stock-amounts'
     | '/administration/lots'
+    | '/administration/manage-buq'
     | '/administration/processing-schedules'
     | '/administration/products'
     | '/administration/programs'
@@ -1206,6 +1218,7 @@ export interface FileRouteTypes {
     | '/(protected)/_protected/administration/geographic-zones'
     | '/(protected)/_protected/administration/ideal-stock-amounts'
     | '/(protected)/_protected/administration/lots'
+    | '/(protected)/_protected/administration/manage-buq'
     | '/(protected)/_protected/administration/processing-schedules'
     | '/(protected)/_protected/administration/products'
     | '/(protected)/_protected/administration/programs'
@@ -1410,6 +1423,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/lots'
       fullPath: '/administration/lots'
       preLoaderRoute: typeof protectedProtectedAdministrationLotsRouteImport
+      parentRoute: typeof protectedProtectedRoute
+    }
+    '/(protected)/_protected/administration/manage-buq': {
+      id: '/(protected)/_protected/administration/manage-buq'
+      path: '/administration/manage-buq'
+      fullPath: '/administration/manage-buq'
+      preLoaderRoute: typeof protectedProtectedAdministrationManageBuqRouteImport
       parentRoute: typeof protectedProtectedRoute
     }
     '/(protected)/_protected/administration/processing-schedules': {
@@ -2066,6 +2086,7 @@ interface protectedProtectedRouteChildren {
   protectedProtectedAdministrationGeographicZonesRoute: typeof protectedProtectedAdministrationGeographicZonesRoute
   protectedProtectedAdministrationIdealStockAmountsRoute: typeof protectedProtectedAdministrationIdealStockAmountsRoute
   protectedProtectedAdministrationLotsRoute: typeof protectedProtectedAdministrationLotsRoute
+  protectedProtectedAdministrationManageBuqRoute: typeof protectedProtectedAdministrationManageBuqRoute
   protectedProtectedAdministrationProcessingSchedulesRoute: typeof protectedProtectedAdministrationProcessingSchedulesRoute
   protectedProtectedAdministrationProductsRoute: typeof protectedProtectedAdministrationProductsRoute
   protectedProtectedAdministrationProgramsRoute: typeof protectedProtectedAdministrationProgramsRoute
@@ -2157,6 +2178,8 @@ const protectedProtectedRouteChildren: protectedProtectedRouteChildren = {
     protectedProtectedAdministrationIdealStockAmountsRoute,
   protectedProtectedAdministrationLotsRoute:
     protectedProtectedAdministrationLotsRoute,
+  protectedProtectedAdministrationManageBuqRoute:
+    protectedProtectedAdministrationManageBuqRoute,
   protectedProtectedAdministrationProcessingSchedulesRoute:
     protectedProtectedAdministrationProcessingSchedulesRoute,
   protectedProtectedAdministrationProductsRoute:
