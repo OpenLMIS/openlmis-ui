@@ -84,6 +84,7 @@ import { isOnline, useOnline } from '@/lib/online';
 import { hasProgramGrant, type ProgramGrant, programGrants } from '@/lib/permissions';
 import type { QuantityUnit } from '@/lib/quantity';
 import type { SearchChange } from '@/lib/table-search';
+import { TOUR_ANCHORS } from '@/lib/tour-anchors';
 import { readStockOnHandOnDevice } from '@/routes/-home-stock-read';
 
 const stockPickerQueries = (userId: string, online = isOnline()) =>
@@ -374,13 +375,15 @@ function StockOnHandBody({
 
   return (
     <>
-      <FacilityProgramSelector
-        applied={applied}
-        programUnavailable={programUnavailable}
-        onDraftChange={setDraft}
-        onSearch={onSearch}
-        options={options}
-      />
+      <div data-tour={TOUR_ANCHORS.stockOnHandPicker}>
+        <FacilityProgramSelector
+          applied={applied}
+          programUnavailable={programUnavailable}
+          onDraftChange={setDraft}
+          onSearch={onSearch}
+          options={options}
+        />
+      </div>
       <StockOnHandOutcome
         applied={applied}
         columnView={columnView}
@@ -534,38 +537,40 @@ function StockOnHandList({
         search={search}
         unit={unit}
       />
-      <QueryBoundary
-        errorComponent={({ error, reset }) => (
-          <ListError
-            description={t('stock-on-hand.error-description')}
-            error={error}
-            reset={reset}
-            title={t('stock-on-hand.error-title')}
-          />
-        )}
-        pendingFallback={
-          <StockOnHandResultsSkeleton
+      <div className="flex flex-col gap-4" data-tour={TOUR_ANCHORS.stockOnHandResults}>
+        <QueryBoundary
+          errorComponent={({ error, reset }) => (
+            <ListError
+              description={t('stock-on-hand.error-description')}
+              error={error}
+              reset={reset}
+              title={t('stock-on-hand.error-title')}
+            />
+          )}
+          pendingFallback={
+            <StockOnHandResultsSkeleton
+              cards={columnView.cards}
+              columns={columnView.visibility}
+              search={search}
+            />
+          }
+          resetKey={JSON.stringify(query)}
+        >
+          <StockOnHandResults
+            pendingEvents={pendingEvents}
+            readOnDevice={readStockOnHandOnDevice}
             cards={columnView.cards}
+            collapsedKey={collapsedKey}
+            facilityId={selection.facilityId}
+            key={collapsedKey}
             columns={columnView.visibility}
+            onSearchChange={onSearchChange}
+            programId={selection.programId}
             search={search}
+            unit={unit}
           />
-        }
-        resetKey={JSON.stringify(query)}
-      >
-        <StockOnHandResults
-          pendingEvents={pendingEvents}
-          readOnDevice={readStockOnHandOnDevice}
-          cards={columnView.cards}
-          collapsedKey={collapsedKey}
-          facilityId={selection.facilityId}
-          key={collapsedKey}
-          columns={columnView.visibility}
-          onSearchChange={onSearchChange}
-          programId={selection.programId}
-          search={search}
-          unit={unit}
-        />
-      </QueryBoundary>
+        </QueryBoundary>
+      </div>
     </div>
   );
 }
