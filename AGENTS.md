@@ -556,8 +556,8 @@ Follow `src/routes/(protected)/_protected.administration.users.tsx` for server-p
   `TableCardsSkeleton` (`src/components/display/table-cards.tsx`) over the same TanStack table: the
   `title` column and the `actions` cell form the band; every other visible column is a row labelled
   by `meta.label`. Text cells use `CellText` (`overflow="nowrap"` for scrolling tables, `"clamp"`
-  for two lines), which wraps in full in cards; `TableCards` bolds the band title. It calls each
-  column's `cell` directly, so cells must not call hooks and must return `null` or `''` when empty
+  for two lines, `"wrap"` for full text wrapping between words), which wraps in full in cards;
+  `TableCards` bolds the band title. It calls each column's `cell` directly, so cells must not call hooks and must return `null` or `''` when empty
   to show `EMPTY_VALUE`. Return `false` only to omit a disabled, row-specific detail in cards.
   Sortable card lists pass `sort` to `DataTableViewOptions` from `searchSort`
   (`src/lib/table-search.ts`); lists without a View menu show it only as cards. Sorting adds

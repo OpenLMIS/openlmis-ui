@@ -138,12 +138,12 @@ function RefreshError({
   return (
     <Alert actionLayout="inline" variant="destructive">
       <TriangleAlertIcon />
-      <AlertTitle>{t(offline ? 'offline.notice-title' : 'manage-buq.error-title')}</AlertTitle>
+      <AlertTitle>{t('manage-buq.error-title')}</AlertTitle>
       <AlertDescription>
         {offline
           ? t('offline.notice-description')
           : isRefused(error)
-            ? t('manage-buq.form.no-access')
+            ? t('no-access.description')
             : t('manage-buq.error-description')}
       </AlertDescription>
       <AlertAction>
