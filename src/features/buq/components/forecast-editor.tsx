@@ -31,8 +31,6 @@ import {
 import {
   buqForecastOptions,
   buqRejectionOptions,
-  buqRemarksOptions,
-  buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
   fetchFinalApprovalIds,
 } from '@/features/buq/api/queries';
@@ -72,6 +70,8 @@ import { regionOf } from '@/features/buq/lib/region';
 import type { ForecastSearch } from '@/features/buq/lib/search';
 import type { BuqForecast, NamedItem } from '@/features/buq/lib/types';
 import {
+  buqRemarksOptions,
+  buqSourcesOfFundsOptions,
   currencySettingsOptions,
   facilityOptions,
   orderablesByIdsOptions,

@@ -8,8 +8,6 @@ import {
   buqApproveStatsOptions,
   buqForecastOptions,
   buqPeriodsOptions,
-  buqRemarksOptions,
-  buqSourcesOfFundsOptions,
   buqsForApprovalOptions,
   buqsForFinalApprovalOptions,
   fetchFinalApprovalIds,
@@ -20,6 +18,8 @@ import { approveAccess, type BuqAccess, buqAccess } from '@/features/buq/lib/acc
 import { approvalFacilityIds } from '@/features/buq/lib/approval-rows';
 import { nationalFacilityIds } from '@/features/buq/lib/national';
 import {
+  buqRemarksOptions,
+  buqSourcesOfFundsOptions,
   currencySettingsOptions,
   deploymentTimeZoneOptions,
   facilitiesByIdsOptions,

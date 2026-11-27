@@ -9,7 +9,6 @@ import type {
   BuqPreparation,
   BuqRejection,
   FinalApprovalItem,
-  NamedItem,
   PreparedBuq,
   SupervisedZones,
   TakenPeriod,
@@ -189,15 +188,6 @@ export async function finalApproveBuqs(ids: readonly string[]) {
     if (!approved.length) throw error;
     return { approved, error };
   }
-}
-
-export async function fetchRemarks() {
-  const { data } = await client.get<NamedItem[]>('/remark');
-  return data;
-}
-
-export function fetchSourcesOfFunds() {
-  return fetchEveryPage<NamedItem>('/sourcesOfFunds', { params: { sort: undefined } });
 }
 
 export async function fetchMostRecentRejection(id: string) {
