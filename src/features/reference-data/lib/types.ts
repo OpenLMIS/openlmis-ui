@@ -272,3 +272,10 @@ export type CurrencySettings = {
 };
 
 export type ReportCategory = { id: string; name: string };
+
+export type BuqCatalogRecord = {
+  id: string;
+  name: string;
+  description: string | null;
+  editable: boolean;
+};

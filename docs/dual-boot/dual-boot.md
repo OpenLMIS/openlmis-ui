@@ -38,6 +38,7 @@ Today the new UI has these screens:
 | Administration / Roles | Find roles, see their rights, and create or edit them. Opening the page needs Manage Users, seeing a role's rights needs View Rights, and creating or editing needs Manage User Roles and View Rights |
 | Administration / Service Accounts | See the API keys other systems use, copy them, add a new one and delete one. Needs the Manage Service Accounts right; without it the menu leaves Service Accounts out and the page says so |
 | Administration / Reports | Find, add, edit and delete dashboard reports, and choose which one appears on Home. Needs the Manage Reports right |
+| Administration / Manage BUQ | See, add, edit and delete remarks and sources of funds used in forecasts. Needs the Manage BUQ right |
 | Administration / Report Categories | See, add, rename and delete categories that group reports. Needs the Manage Report Categories right |
 | Administration / System Notifications | Find, add and edit messages shown to users, and set when they appear and expire. Needs the Manage System Notifications right |
 | Administration / Facilities | Find facilities by name or zone, add one with its programs, and edit one. Needs the Manage Facilities right |

@@ -10,6 +10,7 @@ import {
 } from '@/features/reference-data/lib/rejection-reasons';
 import type {
   ApprovedProduct,
+  BuqCatalogRecord,
   CurrencySettings,
   Facility,
   FacilityOperator,
@@ -524,4 +525,25 @@ export async function fetchAllReportCategories(signal?: AbortSignal) {
     params: { size: 0 },
   });
   return completePageContent(data);
+}
+
+export async function fetchRemarks(signal: AbortSignal) {
+  const { data } = await client.get<BuqCatalogRecord[]>('/remark', { signal });
+  return data;
+}
+
+export async function fetchSourcesOfFunds(signal: AbortSignal) {
+  const scope = getSessionScope();
+  const records: BuqCatalogRecord[] = [];
+  for (let page = 0; ; page += 1) {
+    assertSessionScope(scope);
+    const { data } = await client.get<Page<BuqCatalogRecord>>('/sourcesOfFunds', {
+      params: { page, size: 100 },
+      signal,
+      sessionScope: scope,
+    });
+    assertSessionScope(scope);
+    records.push(...data.content);
+    if (page + 1 >= data.totalPages) return records;
+  }
 }

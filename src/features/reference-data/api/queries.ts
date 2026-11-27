@@ -34,8 +34,10 @@ import {
   fetchReasons,
   fetchRejectionReasonCategories,
   fetchRejectionReasons,
+  fetchRemarks,
   fetchRequisitionGroup,
   fetchRoles,
+  fetchSourcesOfFunds,
   fetchSupervisedFacilities,
   fetchSupervisoryNodes,
   fetchSupervisoryNodesByIds,
@@ -532,4 +534,16 @@ export const reportCategoriesOptions = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.reportCategories.list({ userId }),
     queryFn: ({ signal }) => fetchAllReportCategories(signal),
+  });
+
+export const buqRemarksOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.buq.all, 'remarks'],
+    queryFn: ({ signal }) => fetchRemarks(signal),
+  });
+
+export const buqSourcesOfFundsOptions = () =>
+  queryOptions({
+    queryKey: [...queryKeys.buq.all, 'sources'],
+    queryFn: ({ signal }) => fetchSourcesOfFunds(signal),
   });

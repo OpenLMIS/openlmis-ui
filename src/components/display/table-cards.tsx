@@ -240,9 +240,20 @@ export function CellText({
   dir?: 'auto' | 'ltr';
   strong?: boolean;
   title?: string;
-  overflow?: 'truncate' | 'nowrap' | 'clamp';
+  overflow?: 'truncate' | 'nowrap' | 'clamp' | 'wrap';
 }) {
   if (use(InCardContext)) return <span dir={dir}>{children}</span>;
+  if (overflow === 'wrap') {
+    return (
+      <span
+        className={cn('wrap-anywhere whitespace-normal', strong && 'font-medium')}
+        dir={dir}
+        title={title}
+      >
+        {children}
+      </span>
+    );
+  }
   if (overflow === 'clamp') {
     return (
       <span

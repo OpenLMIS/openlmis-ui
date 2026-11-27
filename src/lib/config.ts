@@ -123,7 +123,7 @@ export const NAV_GROUPS: NavGroup[] = [
         titleKey: 'nav.administration',
         icon: Settings2Icon,
         items: [
-          { titleKey: 'nav.administration.manage-buq', to: '#' },
+          { titleKey: 'nav.administration.manage-buq', to: '/administration/manage-buq' },
           { titleKey: 'nav.administration.data-export', to: '#' },
           { titleKey: 'nav.administration.data-import', to: '#' },
           { titleKey: 'nav.administration.reports', to: '/administration/reports' },

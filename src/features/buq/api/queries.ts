@@ -8,8 +8,6 @@ import {
   fetchBuqsForFinalApproval,
   fetchMostRecentRejection,
   fetchOpenBuqs,
-  fetchRemarks,
-  fetchSourcesOfFunds,
   fetchSupervisedZones,
   fetchTakenPeriods,
 } from '@/features/buq/api/api';
@@ -75,12 +73,6 @@ export const buqForecastOptions = (id: string) =>
     queryKey: queryKeys.buq.detail(id),
     queryFn: () => fetchBuqForecast(id),
   });
-
-export const buqRemarksOptions = () =>
-  queryOptions({ queryKey: [...queryKeys.buq.all, 'remarks'], queryFn: fetchRemarks });
-
-export const buqSourcesOfFundsOptions = () =>
-  queryOptions({ queryKey: [...queryKeys.buq.all, 'sources'], queryFn: fetchSourcesOfFunds });
 
 export const buqRejectionOptions = (id: string) =>
   queryOptions({
