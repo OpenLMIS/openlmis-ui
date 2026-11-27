@@ -2,18 +2,11 @@ import { queryOptions } from '@tanstack/react-query';
 import {
   fetchAvailableDashboards,
   fetchParameterOptions,
-  fetchReportCategories,
   fetchTemplateReport,
   fetchTemplateReports,
 } from '@/features/reports/api/api';
 import type { ReportLookup } from '@/features/reports/lib/report-lookups';
 import { queryKeys } from '@/lib/key-factory';
-
-export const reportCategoriesOptions = (userId: string) =>
-  queryOptions({
-    queryKey: queryKeys.reportCategories.list({ userId }),
-    queryFn: ({ signal }) => fetchReportCategories(signal),
-  });
 
 export const availableDashboardsOptions = (userId: string) =>
   queryOptions({

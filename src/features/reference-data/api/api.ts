@@ -28,6 +28,7 @@ import type {
   Reason,
   RejectionReason,
   RejectionReasonCategory,
+  ReportCategory,
   RequisitionGroup,
   Role,
   SupervisoryNode,
@@ -513,5 +514,16 @@ export async function fetchSupplyLines(filter: { programId: string; supervisoryN
   const { data } = await client.get<Page<{ supplyingFacility: { id: string } }>>('/supplyLines', {
     params: filter,
   });
+  return data.content;
+}
+
+export async function fetchAllReportCategories(signal?: AbortSignal) {
+  const { data } = await client.get<Page<ReportCategory>>('/reports/reportCategories', {
+    signal,
+    params: { size: 0 },
+  });
+  if (data.totalPages > 1 || data.totalElements !== data.content.length) {
+    throw new Error('The report catalog response is incomplete');
+  }
   return data.content;
 }

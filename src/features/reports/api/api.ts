@@ -6,7 +6,6 @@ import {
 } from '@/features/reports/lib/report-lookups';
 import type {
   DashboardReport,
-  ReportCategory,
   ReportFormat,
   ReportTemplate,
   TemplateReport,
@@ -31,9 +30,6 @@ async function fetchCatalog<T>(path: string, signal?: AbortSignal, params = {}) 
   }
   return data.content;
 }
-
-export const fetchReportCategories = (signal?: AbortSignal) =>
-  fetchCatalog<ReportCategory>('/reports/reportCategories', signal);
 
 export const fetchAvailableDashboards = (signal?: AbortSignal) =>
   fetchCatalog<DashboardReport>('/reports/dashboardReports/availableReports', signal, {

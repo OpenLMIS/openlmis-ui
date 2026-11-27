@@ -24,11 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  availableDashboardsOptions,
-  reportCategoriesOptions,
-  templateReportsOptions,
-} from '@/features/reports/api/queries';
+import { reportCategoriesOptions } from '@/features/reference-data/api/queries';
+import { availableDashboardsOptions, templateReportsOptions } from '@/features/reports/api/queries';
 import { groupReports } from '@/features/reports/lib/report-categories';
 import type { CatalogReport } from '@/features/reports/lib/types';
 import { isRefused } from '@/lib/http';

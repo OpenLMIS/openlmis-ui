@@ -4,6 +4,7 @@ import {
   type ApprovedProductsFilter,
   type FacilityProgramFilter,
   type FacilityTypeApprovedOrderablesFilter,
+  fetchAllReportCategories,
   fetchApprovedProducts,
   fetchApprovedProductsByIdentities,
   fetchCurrencySettings,
@@ -525,4 +526,10 @@ export const supplyLinesOptions = (filter: { programId: string; supervisoryNodeI
     queryKey: [...queryKeys.supplyLines.all, 'lookup', filter],
     queryFn: () => fetchSupplyLines(filter),
     staleTime: LOOKUP_STALE_TIME,
+  });
+
+export const reportCategoriesOptions = (userId: string) =>
+  queryOptions({
+    queryKey: queryKeys.reportCategories.list({ userId }),
+    queryFn: ({ signal }) => fetchAllReportCategories(signal),
   });

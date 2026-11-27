@@ -2,25 +2,26 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import {
-  fetchAvailableDashboards,
-  fetchReportCategories,
-  fetchTemplateReports,
-} from '@/features/reports/api/api';
+import { fetchAllReportCategories } from '@/features/reference-data/api/api';
+import { fetchAvailableDashboards, fetchTemplateReports } from '@/features/reports/api/api';
 import { ReportCatalog } from '@/features/reports/components/report-catalog';
 import { reportCaughtError } from '@/lib/report-error';
 import { renderPage } from '@/test-utils/render-page';
 
 vi.mock('@/lib/report-error', () => ({ reportCaughtError: vi.fn() }));
 
+vi.mock('@/features/reference-data/api/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/reference-data/api/api')>()),
+  fetchAllReportCategories: vi.fn(),
+}));
+
 vi.mock('@/features/reports/api/api', () => ({
   fetchAvailableDashboards: vi.fn(),
-  fetchReportCategories: vi.fn(),
   fetchTemplateReports: vi.fn(),
 }));
 
 it('links dashboard reports to the native viewer', async () => {
-  vi.mocked(fetchReportCategories).mockResolvedValue([]);
+  vi.mocked(fetchAllReportCategories).mockResolvedValue([]);
   vi.mocked(fetchTemplateReports).mockResolvedValue([]);
   vi.mocked(fetchAvailableDashboards).mockResolvedValue([{ id: 'dash', name: 'Dashboard' }]);
   const queryClient = new QueryClient({
@@ -39,7 +40,9 @@ it('links dashboard reports to the native viewer', async () => {
 
 it('links templates to the native form and keeps them usable during a dashboard failure and retries only that failed source', async () => {
   const error = new Error('Unavailable');
-  vi.mocked(fetchReportCategories).mockResolvedValue([{ id: 'default', name: 'Default Category' }]);
+  vi.mocked(fetchAllReportCategories).mockResolvedValue([
+    { id: 'default', name: 'Default Category' },
+  ]);
   vi.mocked(fetchTemplateReports).mockResolvedValue([{ id: 'stock', name: 'Stock' }]);
   vi.mocked(fetchAvailableDashboards)
     .mockRejectedValueOnce(error)
@@ -75,8 +78,9 @@ it('links templates to the native form and keeps them usable during a dashboard 
 it.each(['report', 'background'])(
   'preserves %s focus when late categories regroup an uncategorized report',
   async (focused) => {
-    const categories = Promise.withResolvers<Awaited<ReturnType<typeof fetchReportCategories>>>();
-    vi.mocked(fetchReportCategories).mockReturnValue(categories.promise);
+    const categories =
+      Promise.withResolvers<Awaited<ReturnType<typeof fetchAllReportCategories>>>();
+    vi.mocked(fetchAllReportCategories).mockReturnValue(categories.promise);
     vi.mocked(fetchTemplateReports).mockResolvedValue([
       { id: 'sample', name: 'Sample Requisition Report' },
       { id: 'stock', name: 'Stock On Hand', category: { id: 'stock', name: 'Stock' } },
@@ -111,7 +115,9 @@ it.each(['report', 'background'])(
 it('replaces the initial skeleton with usable reports while another source is still loading', async () => {
   const templates = Promise.withResolvers<Awaited<ReturnType<typeof fetchTemplateReports>>>();
   const dashboards = Promise.withResolvers<Awaited<ReturnType<typeof fetchAvailableDashboards>>>();
-  vi.mocked(fetchReportCategories).mockResolvedValue([{ id: 'default', name: 'Default Category' }]);
+  vi.mocked(fetchAllReportCategories).mockResolvedValue([
+    { id: 'default', name: 'Default Category' },
+  ]);
   vi.mocked(fetchTemplateReports).mockReturnValue(templates.promise);
   vi.mocked(fetchAvailableDashboards).mockReturnValue(dashboards.promise);
   const queryClient = new QueryClient({

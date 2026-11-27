@@ -1,4 +1,5 @@
-import type { CatalogReport, ReportCategory, ReportGroup } from '@/features/reports/lib/types';
+import type { ReportCategory } from '@/features/reference-data/lib/types';
+import type { CatalogReport, ReportGroup } from '@/features/reports/lib/types';
 
 export function groupReports(
   categories: readonly ReportCategory[],
