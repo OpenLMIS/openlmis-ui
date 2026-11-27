@@ -429,8 +429,6 @@
   "dashboard-reports.enabled": "Enabled",
   "dashboard-reports.error-description": "Try again to load the dashboard reports.",
   "dashboard-reports.error-title": "Could Not Load Dashboard Reports",
-  "dashboard-reports.form.add": "Add Dashboard Report",
-  "dashboard-reports.form.add-title": "Add Dashboard Report",
   "dashboard-reports.form.category-gone": "This category no longer exists. Choose another.",
   "dashboard-reports.form.category-load-error": "Could Not Load Categories",
   "dashboard-reports.form.category-placeholder": "Select Category",

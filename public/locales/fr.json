@@ -429,8 +429,6 @@
   "dashboard-reports.enabled": "Activé",
   "dashboard-reports.error-description": "Réessayez de charger les rapports de tableau de bord.",
   "dashboard-reports.error-title": "Impossible de charger les rapports de tableau de bord",
-  "dashboard-reports.form.add": "Ajouter un rapport de tableau de bord",
-  "dashboard-reports.form.add-title": "Ajouter un rapport de tableau de bord",
   "dashboard-reports.form.category-gone": "Cette catégorie n’existe plus. Choisissez-en une autre.",
   "dashboard-reports.form.category-load-error": "Impossible de charger les catégories",
   "dashboard-reports.form.category-placeholder": "Sélectionner une catégorie",

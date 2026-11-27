@@ -1,6 +1,6 @@
 import type { ReportCategory } from '@/features/reference-data/lib/types';
 
-export type DashboardReportType = 'SUPERSET' | 'POWERBI';
+type DashboardReportType = 'SUPERSET' | 'POWERBI';
 
 export type ManagedDashboardReport = {
   id: string;

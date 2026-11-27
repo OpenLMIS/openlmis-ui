@@ -1,5 +1,10 @@
 import { revalidateLogic } from '@tanstack/react-form';
-import { useMutationState, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  useMutationState,
+  usePrefetchQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { type RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -54,6 +59,9 @@ import { reportApiError } from '@/lib/report-error';
 
 const savesKey = [...queryKeys.dashboardReports.all, 'save'] as const;
 const saveKey = (target: string) => [...savesKey, target] as const;
+
+const isReportMissing = (error: unknown) =>
+  isNotFound(error) && !fieldErrorFor(error, REPORT_FIELD_ERRORS);
 
 export function ReportFormDialog({
   target,
@@ -139,9 +147,10 @@ function ReportDialogContent({
   userId,
 }: Omit<ReportFormProps, 'submit' | 'title'> & { opening: number; target: string }) {
   const { t } = useTranslation();
+  usePrefetchQuery(reportCategoriesOptions(userId));
   const isNew = target === 'new';
-  const title = t(isNew ? 'dashboard-reports.form.add-title' : 'dashboard-reports.form.edit-title');
-  const submit = t(isNew ? 'dashboard-reports.form.add' : 'dashboard-reports.form.save');
+  const title = t(isNew ? 'dashboard-reports.add' : 'dashboard-reports.form.edit-title');
+  const submit = t(isNew ? 'dashboard-reports.add' : 'dashboard-reports.form.save');
   const formProps = { active, isChecking, isSaving, onDone, onChecking, submit, title, userId };
   const [savingAtOpen] = useState(isSaving);
   const [reread, setReread] = useState(false);
@@ -252,7 +261,7 @@ function ReportForm({
             queryKey: reportCategoriesOptions(userId).queryKey,
           });
         }
-      } else if (report && isNotFound(error)) {
+      } else if (report && isReportMissing(error)) {
         const description = apiErrorText(
           error,
           'api-error.report.error.dashboardReport.notFound',
@@ -274,7 +283,7 @@ function ReportForm({
           if (activeRef.current) onDone();
         },
         onError: (error) => {
-          if (report && isNotFound(error) && activeRef.current) onDone();
+          if (report && isReportMissing(error) && activeRef.current) onDone();
         },
       })
       .catch(() => undefined);
@@ -292,7 +301,7 @@ function ReportForm({
       setCheckError(null);
       save.reset();
       const body = toReportBody(value, report);
-      if (body.showOnHomePage && !report?.showOnHomePage) {
+      if (body.showOnHomePage) {
         onChecking(true);
         try {
           const latest = await queryClient.fetchQuery({
@@ -331,7 +340,7 @@ function ReportForm({
   const saveError =
     save.isError &&
     !fieldErrorFor(save.error, REPORT_FIELD_ERRORS) &&
-    !(report && isNotFound(save.error))
+    !(report && isReportMissing(save.error))
       ? save.error
       : null;
   const error = checkError ?? saveError;
@@ -473,7 +482,7 @@ function CategoryPicker({
     <ComboboxField
       clearLabel={t('data-table.clear-selection')}
       disabled={disabled}
-      emptyMessage={t('orders.no-options')}
+      emptyMessage={t('data-table.no-matches')}
       items={items}
       label={t('dashboard-reports.category')}
       placeholder={t('dashboard-reports.form.category-placeholder')}

@@ -429,8 +429,6 @@
   "dashboard-reports.enabled": "مفعّل",
   "dashboard-reports.error-description": "حاول مرة أخرى تحميل تقارير لوحات المعلومات.",
   "dashboard-reports.error-title": "تعذّر تحميل تقارير لوحات المعلومات",
-  "dashboard-reports.form.add": "إضافة تقرير لوحة معلومات",
-  "dashboard-reports.form.add-title": "إضافة تقرير لوحة معلومات",
   "dashboard-reports.form.category-gone": "لم تعد هذه الفئة موجودة. اختر فئة أخرى.",
   "dashboard-reports.form.category-load-error": "تعذّر تحميل الفئات",
   "dashboard-reports.form.category-placeholder": "اختر الفئة",

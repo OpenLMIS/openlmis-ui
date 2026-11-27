@@ -30,13 +30,15 @@ export function HomeFlagConfirm({
           <AlertDialogTitle>{t('dashboard-reports.home-confirm.title')}</AlertDialogTitle>
           {shown && (
             <AlertDialogDescription>
-              {t('dashboard-reports.home-confirm.description', {
-                current: shown.current,
-                name: shown.name,
-              })}
-              {!shown.enabled && (
-                <> {t('dashboard-reports.home-confirm.disabled', { name: shown.name })}</>
-              )}
+              <span className="wrap-anywhere">
+                {t('dashboard-reports.home-confirm.description', {
+                  current: shown.current,
+                  name: shown.name,
+                })}
+                {!shown.enabled && (
+                  <> {t('dashboard-reports.home-confirm.disabled', { name: shown.name })}</>
+                )}
+              </span>
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>

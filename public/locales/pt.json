@@ -429,8 +429,6 @@
   "dashboard-reports.enabled": "Ativado",
   "dashboard-reports.error-description": "Tente carregar novamente os relatórios de painel.",
   "dashboard-reports.error-title": "Não foi possível carregar os relatórios de painel",
-  "dashboard-reports.form.add": "Adicionar relatório de painel",
-  "dashboard-reports.form.add-title": "Adicionar relatório de painel",
   "dashboard-reports.form.category-gone": "Esta categoria já não existe. Selecione outra.",
   "dashboard-reports.form.category-load-error": "Não foi possível carregar as categorias",
   "dashboard-reports.form.category-placeholder": "Selecionar categoria",

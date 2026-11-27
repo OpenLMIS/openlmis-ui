@@ -9,9 +9,11 @@ const reportType = z.enum(['SUPERSET', 'POWERBI'], {
   error: 'dashboard-reports.form.type-required',
 });
 const uuid = z.guid();
+const categoryRequired = 'dashboard-reports.form.category-required';
+const categoryId = z.string().trim().min(1, categoryRequired);
 const fields = z.object({
   name: z.string().trim().min(1, 'dashboard-reports.form.name-required'),
-  categoryId: z.string().trim().min(1, 'dashboard-reports.form.category-required').nullable(),
+  categoryId: categoryId.nullable().refine((id) => id !== null, categoryRequired),
   type: z.string().trim(),
   url: z.string().trim(),
   embeddedUuid: z.string().trim(),
@@ -36,14 +38,7 @@ export function dashboardReportFormSchema(
   appOrigin: string,
   reportId?: string,
 ) {
-  return fields.superRefine(({ name, categoryId, type, url, embeddedUuid }, ctx) => {
-    if (!categoryId) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['categoryId'],
-        message: 'dashboard-reports.form.category-required',
-      });
-    }
+  return fields.superRefine(({ name, type, url, embeddedUuid }, ctx) => {
     if (!reportType.safeParse(type).success) {
       ctx.addIssue({
         code: 'custom',
@@ -144,7 +139,7 @@ export function toReportBody(
   return {
     ...report,
     name: values.name.trim(),
-    category: { id: z.string().trim().min(1).parse(values.categoryId) },
+    category: { id: categoryId.parse(values.categoryId) },
     type,
     url: values.url.trim() || null,
     embeddedUuid: type === 'SUPERSET' ? values.embeddedUuid.trim() || null : null,

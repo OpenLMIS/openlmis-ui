@@ -28,7 +28,7 @@ const existing: ManagedDashboardReport = {
 
 it.each([
   [{ name: '   ' }, 'form.name-required'],
-  [{ categoryId: '   ' }, 'form.category-required'],
+  [{ categoryId: null }, 'form.category-required'],
   [{ type: '   ' }, 'form.type-required'],
   [{ url: ' ' }, 'form.url-or-uuid-required'],
   [{ type: 'POWERBI', url: ' ', embeddedUuid: uuid }, 'form.url-required'],

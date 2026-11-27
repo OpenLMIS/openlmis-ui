@@ -53,7 +53,10 @@ function renderForm(
   queryClient.setQueryData(catalog, [stock]);
   queryClient.setQueryData(home, stock);
   const get = vi.spyOn(client, 'get').mockImplementation(async (path) => {
-    if (path === `${url}/${stock.id}`) return { data: { ...stock, name: 'Fresh stock' } };
+    if (path === `${url}/${stock.id}`)
+      return {
+        data: { ...stock, ...cachedList.find(({ id }) => id === stock.id), name: 'Fresh stock' },
+      };
     if (path === url) return { data: { content: freshList } };
     throw new Error(`Unexpected request: ${path}`);
   });
@@ -95,6 +98,77 @@ it('opens with fresh Edit values and invalidates the catalog and Home after savi
   expect(queryClient.getQueryState(home)?.isInvalidated).toBe(true);
 });
 
+it('starts the category lookup before the Edit detail resolves', async () => {
+  const queryClient = new QueryClient();
+  const detail = Promise.withResolvers<{ data: ManagedDashboardReport }>();
+  queryClient.setQueryData(dashboardReportsAdminOptions().queryKey, [stock]);
+  const get = vi.spyOn(client, 'get').mockImplementation(async (path) => {
+    if (path === `${url}/${stock.id}`) return detail.promise;
+    if (path === '/reports/reportCategories') {
+      return { data: { content: [category], totalElements: 1, totalPages: 1 } };
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ReportFormDialog onClose={vi.fn()} target={stock.id} userId="admin" />
+    </QueryClientProvider>,
+  );
+
+  await waitFor(() =>
+    expect(get).toHaveBeenCalledWith('/reports/reportCategories', expect.anything()),
+  );
+  expect(get).toHaveBeenCalledWith(`${url}/${stock.id}`, expect.anything());
+  detail.resolve({ data: stock });
+  expect(await screen.findByRole('textbox', { name: /dashboard-reports.name/ })).toHaveValue(
+    stock.name,
+  );
+});
+
+it('keeps Edit open with the draft and refreshes choices when the category was deleted', async () => {
+  const user = userEvent.setup();
+  vi.spyOn(client, 'put').mockRejectedValue({
+    isAxiosError: true,
+    response: {
+      status: 404,
+      data: { messageKey: 'report.error.reportCategory.notFound' },
+    },
+  });
+  const { get, onClose, queryClient } = renderForm(stock.id);
+  const replacement = { id: 'c2', name: 'Warehouse Reports' };
+  const input = await screen.findByRole('textbox', { name: /dashboard-reports.name/ });
+  await user.type(input, ' updated');
+  get.mockResolvedValueOnce({
+    data: { content: [replacement], totalElements: 1, totalPages: 1 },
+  });
+  await user.click(screen.getByRole('button', { name: 'dashboard-reports.form.save' }));
+
+  expect(await screen.findByText('dashboard-reports.form.category-gone')).toBeVisible();
+  await waitFor(() =>
+    expect(queryClient.getQueryData(reportCategoriesOptions('admin').queryKey)).toEqual([
+      replacement,
+    ]),
+  );
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(input).toHaveValue('Fresh stock updated');
+});
+
+it('confirms takeover when the edited report was on Home at opening', async () => {
+  const user = userEvent.setup();
+  const saved = { ...stock, showOnHomePage: true };
+  const holder = { ...saved, id: 'other', name: 'Current report' };
+  const put = vi.spyOn(client, 'put').mockResolvedValue({ data: saved });
+  const { get } = renderForm(stock.id, [holder], [saved]);
+  await screen.findByRole('textbox', { name: /dashboard-reports.name/ });
+  expect(screen.getByRole('switch', { name: 'dashboard-reports.home' })).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'dashboard-reports.form.save' }));
+
+  expect(await screen.findByRole('alertdialog')).toBeVisible();
+  expect(get).toHaveBeenCalledWith(url, expect.anything());
+  expect(put).not.toHaveBeenCalled();
+});
+
 it('puts a POST duplicate refusal on Name and keeps the Add dialog open', async () => {
   const user = userEvent.setup();
   const post = vi.spyOn(client, 'post').mockRejectedValue({
@@ -115,7 +189,7 @@ it('puts a POST duplicate refusal on Name and keeps the Add dialog open', async 
     screen.getByRole('textbox', { name: /dashboard-reports.form.url/ }),
     stock.url ?? '',
   );
-  await user.click(screen.getByRole('button', { name: 'dashboard-reports.form.add' }));
+  await user.click(screen.getByRole('button', { name: 'dashboard-reports.add' }));
 
   expect(await screen.findByText('dashboard-reports.form.name-taken')).toBeVisible();
   expect(name).toHaveAccessibleDescription('dashboard-reports.form.name-taken');
