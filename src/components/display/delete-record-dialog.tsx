@@ -43,7 +43,6 @@ type DeleteCopy = {
   missingTitle: string;
   pendingTitle: string;
   description: (name: string) => string;
-  warning?: string;
   missingDescription: string;
   action: string;
 };
@@ -237,14 +236,9 @@ function DeleteRecordContent<T extends RecordSummary, TKey extends QueryKey>({
         ) : (
           <AlertDialogDescription>
             {record ? (
-              <>
-                <span className="line-clamp-4 wrap-anywhere">
-                  {blockedNotice?.description ?? copy.description(record.name)}
-                </span>
-                {!blockedNotice && copy.warning && (
-                  <span className="mt-2 block">{copy.warning}</span>
-                )}
-              </>
+              <span className="line-clamp-4 wrap-anywhere">
+                {blockedNotice?.description ?? copy.description(record.name)}
+              </span>
             ) : missing ? (
               copy.missingDescription
             ) : (

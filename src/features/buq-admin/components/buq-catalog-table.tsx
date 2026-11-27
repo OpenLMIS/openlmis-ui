@@ -93,7 +93,6 @@ function createColumns(
       meta: { className: 'w-24', skeleton: 'control' },
       cell: ({ row: { original: record } }) => {
         const disabled = record.editable === false;
-        const reason = disabled ? t('manage-buq.read-only-description') : undefined;
         return (
           <RowActions
             label={t('manage-buq.actions-for', { name: record.name })}
@@ -103,7 +102,6 @@ function createColumns(
                 icon: <PencilIcon />,
                 label: t('manage-buq.edit'),
                 disabled,
-                reason,
                 onSelect: (opener) => onEdit(record, opener),
               },
               {
@@ -112,7 +110,6 @@ function createColumns(
                 label: t('manage-buq.delete'),
                 destructive: true,
                 disabled,
-                reason,
                 onSelect: (opener) => onDelete(record, opener),
               },
             ]}
@@ -161,9 +158,9 @@ function ReadOnlyCatalogName({ name }: { name: string }) {
   return (
     <span className="inline-flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 whitespace-normal">
       <bdi className="min-w-0 wrap-anywhere">{name}</bdi>
-      <Badge variant="secondary" wrap="normal">
-        <LockIcon data-icon="inline-start" />
-        {t('manage-buq.read-only-label')}
+      <Badge variant="secondary">
+        <LockIcon aria-hidden />
+        <span className="sr-only">{t('manage-buq.read-only-label')}</span>
       </Badge>
     </span>
   );

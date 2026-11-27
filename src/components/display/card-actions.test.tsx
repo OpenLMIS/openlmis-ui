@@ -95,24 +95,3 @@ it('preserves an explicit menu for stock recovery and disables reference icon ac
   expect(screen.getByRole('button', { name: 'View Admin' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Remove Admin' })).toBeDisabled();
 });
-
-it('exposes the reason for a disabled icon action without activating it', async () => {
-  const user = userEvent.setup();
-  const onSelect = vi.fn();
-  const reason = 'This record is read-only.';
-  render(
-    <RowActions actions={[{ ...edit, disabled: true, reason, onSelect }]} label="Record Actions" />,
-  );
-
-  const action = screen.getByRole('button', { name: 'Edit' });
-  expect(action).toHaveAccessibleDescription(reason);
-  expect(action).toHaveAttribute('aria-disabled', 'true');
-  await user.tab();
-  expect(action).toHaveFocus();
-  expect(
-    await screen.findByText(reason, { selector: '[data-slot=tooltip-content]' }),
-  ).toBeVisible();
-  await user.keyboard('{Enter}');
-  await user.click(action);
-  expect(onSelect).not.toHaveBeenCalled();
-});

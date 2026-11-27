@@ -28,7 +28,6 @@ const getCopy = (t: TFunction, tab: BuqCatalogTab) => {
     missingTitle: t('manage-buq.not-found-title'),
     pendingTitle: t(`manage-buq.delete.pending-title-${kind}`),
     description: (name: string) => t(`manage-buq.delete.description-${kind}`, { name }),
-    warning: t('manage-buq.delete.warning'),
     missingDescription: t(BUQ_CATALOG_NOT_FOUND[tab]),
     action: t('manage-buq.delete'),
   };
